@@ -170,7 +170,7 @@ export default function Contact() {
 
   /* fetch profile — updates only if API responds successfully */
   useEffect(() => {
-    axios.get('http://localhost:5000/api/profile')
+    axios.get('http://https://portfolio-w9xn.onrender.com/api/profile')
       .then(({ data }) => {
         const { email, phone, location } = data;
         if (!email && !phone && !location) return; // guard empty response

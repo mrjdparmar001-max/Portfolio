@@ -401,9 +401,9 @@ export default function About() {
   const bgY = useTransform(scrollYProgress, [0, 1], ['0%', '20%']);
 
   useEffect(() => {
-    axios.get('http://localhost:5000/api/skills').then(r => setSkills(r.data)).catch(() => {});
-    axios.get('http://localhost:5000/api/projects').then(r => setStats(s => ({ ...s, projectCount: r.data.length }))).catch(() => {});
-    axios.get('http://localhost:5000/api/profile').then(r => setStats(s => ({
+    axios.get('http://https://portfolio-w9xn.onrender.com/api/skills').then(r => setSkills(r.data)).catch(() => {});
+    axios.get('http://https://portfolio-w9xn.onrender.com/api/projects').then(r => setStats(s => ({ ...s, projectCount: r.data.length }))).catch(() => {});
+    axios.get('http://https://portfolio-w9xn.onrender.com/api/profile').then(r => setStats(s => ({
       ...s,
       expYears:     r.data.expYears     ?? r.data.yearsExperience ?? 3,
       expMonths:    r.data.expMonths    ?? 0,

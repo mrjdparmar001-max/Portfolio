@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { getProjects, createProject, updateProject, deleteProject, uploadImage } from '../api/api';
 import { FiPlus, FiEdit2, FiTrash2, FiX, FiCheck, FiUpload } from 'react-icons/fi';
 
-const BASE = 'http://localhost:5000';
+const BASE = 'http://https://portfolio-w9xn.onrender.com';
 const empty = { title: '', description: '', techStack: '', liveUrl: '', githubUrl: '', image: '', category: 'Web', featured: false };
 
 export default function Projects() {

@@ -5,7 +5,7 @@ import { useTheme } from '../context/ThemeContext';
 import { FiGithub, FiLinkedin, FiMail, FiDownload, FiTwitter } from 'react-icons/fi';
 import { getProfile } from '../api/api';
 
-const BASE = 'http://localhost:5000';
+const BASE = 'http://https://portfolio-w9xn.onrender.com';
 
 // ─── Floating Particle ───────────────────────────────────────────────────────
 function Particle({ theme, index }) {

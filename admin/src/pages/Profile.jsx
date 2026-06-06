@@ -10,7 +10,7 @@ const fields = [
   { key: 'location', label: 'Location', icon: <FiMapPin />, type: 'text', placeholder: 'City, Country' },
 ];
 
-const BASE = 'http://localhost:5000';
+const BASE = 'http://https://portfolio-w9xn.onrender.com';
 
 export default function Profile() {
   const [form, setForm] = useState({ email: '', phone: '', location: '', github: '', linkedin: '', twitter: '', yearsExperience: 3, expYears: 3, expMonths: 0, expDays: 0, happyClients: 20, awardsWon: 5 });

@@ -4,7 +4,7 @@ import { useTheme } from '../context/ThemeContext';
 import { getProjects } from '../api/api';
 import { FiGithub, FiExternalLink } from 'react-icons/fi';
 
-const BASE = 'http://localhost:5000';
+const BASE = 'http://https://portfolio-w9xn.onrender.com';
 const categories = ['All', 'Web', 'Mobile', 'Backend', 'UI/UX'];
 
 // ─── Spotlight cursor glow ───────────────────────────────────────────────────
