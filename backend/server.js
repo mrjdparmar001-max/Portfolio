@@ -12,15 +12,12 @@ dns.setDefaultResultOrder("ipv4first");
 dns.setServers(["8.8.8.8", "1.1.1.1"]);
 
 /* CORS */
-app.use(cors({
-  origin: [
-    "http://localhost:3000",
-    "http://localhost:5173",
-    "https://portfolio-three-eosin-mq17lyagv9.vercel.app"
-  ],
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE"],
-}));
+app.use(
+  cors({
+    origin: true,
+    credentials: true,
+  })
+);
 
 app.use(express.json());
 
