@@ -14,8 +14,10 @@ dns.setServers(["8.8.8.8", "1.1.1.1"]);
 /* CORS */
 app.use(
   cors({
-    origin: true,
-    credentials: true,
+    origin: [
+      "https://portfolio-three-eosin-mq17lyagv9.vercel.app",
+      "http://localhost:5173",
+    ],
   })
 );
 
