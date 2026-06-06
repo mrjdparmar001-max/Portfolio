@@ -401,22 +401,22 @@ export default function About() {
   const bgY = useTransform(scrollYProgress, [0, 1], ['0%', '20%']);
 
   useEffect(() => {
-    axios.get('http://https://portfolio-w9xn.onrender.com/api/skills').then(r => setSkills(r.data)).catch(() => {});
-    axios.get('http://https://portfolio-w9xn.onrender.com/api/projects').then(r => setStats(s => ({ ...s, projectCount: r.data.length }))).catch(() => {});
-    axios.get('http://https://portfolio-w9xn.onrender.com/api/profile').then(r => setStats(s => ({
+    axios.get('https://portfolio-w9xn.onrender.com/api/skills').then(r => setSkills(r.data)).catch(() => { });
+    axios.get('https://portfolio-w9xn.onrender.com/api/projects').then(r => setStats(s => ({ ...s, projectCount: r.data.length }))).catch(() => { });
+    axios.get('https://portfolio-w9xn.onrender.com/api/profile').then(r => setStats(s => ({
       ...s,
-      expYears:     r.data.expYears     ?? r.data.yearsExperience ?? 3,
-      expMonths:    r.data.expMonths    ?? 0,
-      expDays:      r.data.expDays      ?? 0,
+      expYears: r.data.expYears ?? r.data.yearsExperience ?? 3,
+      expMonths: r.data.expMonths ?? 0,
+      expDays: r.data.expDays ?? 0,
       happyClients: r.data.happyClients ?? 20,
-      awardsWon:    r.data.awardsWon    ?? 5,
-    }))).catch(() => {});
+      awardsWon: r.data.awardsWon ?? 5,
+    }))).catch(() => { });
   }, []);
 
   const expParts = [
-    stats.expYears  > 0 ? `${stats.expYears}y`  : '',
+    stats.expYears > 0 ? `${stats.expYears}y` : '',
     stats.expMonths > 0 ? `${stats.expMonths}m` : '',
-    stats.expDays   > 0 ? `${stats.expDays}d`   : '',
+    stats.expDays > 0 ? `${stats.expDays}d` : '',
   ].filter(Boolean);
   const expLabel = expParts.join(' ') || '0d';
 
@@ -424,7 +424,7 @@ export default function About() {
     { value: stats.expYears, extra: stats.expMonths, label: 'Experience' },
     { value: stats.projectCount, label: 'Projects Done' },
     { value: stats.happyClients, label: 'Happy Clients' },
-    { value: stats.awardsWon,    label: 'Awards Won' },
+    { value: stats.awardsWon, label: 'Awards Won' },
   ];
 
   return (

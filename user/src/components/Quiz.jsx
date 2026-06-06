@@ -26,20 +26,20 @@ const ALL_Q = [
 ];
 
 const MODES = [
-  { id: "easy",   label: "Easy",      emoji: "🌱", time: 30, color: "#43e97b", desc: "30s per question" },
-  { id: "medium", label: "Medium",    emoji: "⚡", time: 20, color: "#a78bfa", desc: "20s per question" },
-  { id: "hard",   label: "Hard",      emoji: "🔥", time: 12, color: "#f97316", desc: "12s per question" },
-  { id: "vhard",  label: "Very Hard", emoji: "💀", time: 7,  color: "#ff4040", desc: "7s per question"  },
+  { id: "easy", label: "Easy", emoji: "🌱", time: 30, color: "#43e97b", desc: "30s per question" },
+  { id: "medium", label: "Medium", emoji: "⚡", time: 20, color: "#a78bfa", desc: "20s per question" },
+  { id: "hard", label: "Hard", emoji: "🔥", time: 12, color: "#f97316", desc: "12s per question" },
+  { id: "vhard", label: "Very Hard", emoji: "💀", time: 7, color: "#ff4040", desc: "7s per question" },
 ];
 
 const CAT_CLR = { JavaScript: "#f7df1e", React: "#61dafb", CSS: "#60a5fa", "Node.js": "#68a063", MongoDB: "#4db33d", "🧩 Puzzle": "#f472b6" };
 
 const OUTFITS = [
-  { name: "Dev Purple",  j: "#7c3aed", jd: "#5b21b6", sh: "#f472b6", p: "#1e1b4b", pd: "#312e81", sw: "#f8fafc", sa: "#7c3aed" },
-  { name: "Hacker Green",j: "#065f46", jd: "#064e3b", sh: "#6ee7b7", p: "#111827", pd: "#0f172a", sw: "#1f2937", sa: "#10b981" },
+  { name: "Dev Purple", j: "#7c3aed", jd: "#5b21b6", sh: "#f472b6", p: "#1e1b4b", pd: "#312e81", sw: "#f8fafc", sa: "#7c3aed" },
+  { name: "Hacker Green", j: "#065f46", jd: "#064e3b", sh: "#6ee7b7", p: "#111827", pd: "#0f172a", sw: "#1f2937", sa: "#10b981" },
   { name: "Retro Amber", j: "#b45309", jd: "#92400e", sh: "#fde68a", p: "#78350f", pd: "#451a03", sw: "#f59e0b", sa: "#b45309" },
-  { name: "Cyber Blue",  j: "#0e7490", jd: "#0c4a6e", sh: "#67e8f9", p: "#0f172a", pd: "#020617", sw: "#e0f2fe", sa: "#0ea5e9" },
-  { name: "Pinky",       j: "#be185d", jd: "#9d174d", sh: "#fbcfe8", p: "#500724", pd: "#4a044e", sw: "#fce7f3", sa: "#ec4899" },
+  { name: "Cyber Blue", j: "#0e7490", jd: "#0c4a6e", sh: "#67e8f9", p: "#0f172a", pd: "#020617", sw: "#e0f2fe", sa: "#0ea5e9" },
+  { name: "Pinky", j: "#be185d", jd: "#9d174d", sh: "#fbcfe8", p: "#500724", pd: "#4a044e", sw: "#fce7f3", sa: "#ec4899" },
 ];
 
 const TOTAL = 10;
@@ -85,7 +85,7 @@ function createAudioEngine() {
     if (bgPlaying) return;
     bgPlaying = true;
     const c = getCtx();
-    bgNodes.forEach(n => { try { n.stop(); } catch {} });
+    bgNodes.forEach(n => { try { n.stop(); } catch { } });
     bgNodes = [];
 
     // Base notes for a cheerful loop
@@ -141,7 +141,7 @@ function createAudioEngine() {
   function stopBg() {
     bgPlaying = false;
     clearTimeout(bgLoopTimer);
-    bgNodes.forEach(n => { try { n.stop(); } catch {} });
+    bgNodes.forEach(n => { try { n.stop(); } catch { } });
     bgNodes = [];
   }
 
@@ -279,9 +279,9 @@ function drawCharacter(ctx, emotion, frame, blinking, dir, jumpY, dancePhase, ou
   function drawArm(sx, sy, ang) {
     ctx.save(); ctx.translate(sx, sy); ctx.rotate(ang * Math.PI / 180);
     ctx.fillStyle = O.jd; ctx.beginPath(); ctx.roundRect(-6, 0, 12, 20, 4); ctx.fill();
-    ctx.fillStyle = O.j;  ctx.beginPath(); ctx.arc(0, 19, 5.5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = O.j; ctx.beginPath(); ctx.arc(0, 19, 5.5, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = O.jd; ctx.beginPath(); ctx.roundRect(-5, 17, 10, 20, 3); ctx.fill();
-    ctx.fillStyle = O.j;  ctx.beginPath(); ctx.roundRect(-5, 34, 10, 5, [0, 0, 2, 2]); ctx.fill();
+    ctx.fillStyle = O.j; ctx.beginPath(); ctx.roundRect(-5, 34, 10, 5, [0, 0, 2, 2]); ctx.fill();
     ctx.fillStyle = SKIN; ctx.beginPath(); ctx.arc(0, 43, 6.5, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = "#e9ac74"; ctx.beginPath(); ctx.ellipse(-5, 41, 3, 4, 0.4, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = "rgba(0,0,0,0.13)"; ctx.lineWidth = 0.8;
@@ -293,22 +293,22 @@ function drawCharacter(ctx, emotion, frame, blinking, dir, jumpY, dancePhase, ou
 
   function drawLeg(tx, ang, flip) {
     ctx.save(); ctx.translate(tx, BY + 30); ctx.rotate(ang * Math.PI / 180);
-    ctx.fillStyle = O.p;  ctx.beginPath(); ctx.roundRect(-7, 0, 14, 18, 2); ctx.fill();
+    ctx.fillStyle = O.p; ctx.beginPath(); ctx.roundRect(-7, 0, 14, 18, 2); ctx.fill();
     ctx.fillStyle = O.pd; ctx.beginPath(); ctx.roundRect(-7, 16, 14, 14, [0, 0, 2, 2]); ctx.fill();
     ctx.fillStyle = "rgba(255,255,255,0.05)"; ctx.beginPath(); ctx.roundRect(flip ? -7 : 0, 0, 5, 30, 1); ctx.fill();
     ctx.fillStyle = O.sw;
     if (flip) { ctx.beginPath(); ctx.roundRect(-9, 26, 21, 9, [2, 7, 3, 2]); ctx.fill(); }
-    else       { ctx.beginPath(); ctx.roundRect(-9, 26, 21, 9, [7, 2, 2, 3]); ctx.fill(); }
+    else { ctx.beginPath(); ctx.roundRect(-9, 26, 21, 9, [7, 2, 2, 3]); ctx.fill(); }
     ctx.fillStyle = O.sa;
     if (flip) { ctx.beginPath(); ctx.roundRect(-9, 31, 21, 5, [0, 0, 3, 2]); ctx.fill(); }
-    else       { ctx.beginPath(); ctx.roundRect(-9, 31, 21, 5, [0, 0, 2, 3]); ctx.fill(); }
+    else { ctx.beginPath(); ctx.roundRect(-9, 31, 21, 5, [0, 0, 2, 3]); ctx.fill(); }
     ctx.fillStyle = "rgba(255,255,255,0.22)"; ctx.beginPath(); ctx.roundRect(-5, 28, 9, 3, 1); ctx.fill();
     ctx.restore();
   }
-  drawLeg(BX + 9,      ls, true);
+  drawLeg(BX + 9, ls, true);
   drawLeg(BX + CW - 9, -ls, false);
 
-  ctx.fillStyle = O.j;  ctx.beginPath(); ctx.roundRect(BX, BY, CW, 32, [8, 8, 4, 4]); ctx.fill();
+  ctx.fillStyle = O.j; ctx.beginPath(); ctx.roundRect(BX, BY, CW, 32, [8, 8, 4, 4]); ctx.fill();
   ctx.fillStyle = O.sh; ctx.beginPath(); ctx.roundRect(BX + CW / 2 - 5, BY, 10, 32, [0, 0, 3, 3]); ctx.fill();
   ctx.fillStyle = O.jd; ctx.beginPath(); ctx.roundRect(BX + CW / 2 - 1.5, BY, 3, 32, 0); ctx.fill();
   ctx.fillStyle = O.jd; ctx.beginPath(); ctx.roundRect(BX, BY + 28, CW, 4, [0, 0, 3, 3]); ctx.fill();
@@ -350,7 +350,7 @@ function drawCharacter(ctx, emotion, frame, blinking, dir, jumpY, dancePhase, ou
   if (emotion === "correct" || emotion === "dancing") {
     ctx.beginPath(); ctx.arc(-1, 9, 6, 0.05 * Math.PI, 0.95 * Math.PI); ctx.stroke();
     ctx.fillStyle = "#fbbf24"; ctx.beginPath(); ctx.ellipse(-1, 13, 4, 2.5, 0, 0, Math.PI); ctx.fill();
-    ctx.fillStyle = "#fff"; [-4, -1, 2].forEach(x => { ctx.beginPath(); ctx.arc(x, 10, 1.7, 0, Math.PI * 2); ctx.fill(); });
+    ctx.fillStyle = "#fff";[-4, -1, 2].forEach(x => { ctx.beginPath(); ctx.arc(x, 10, 1.7, 0, Math.PI * 2); ctx.fill(); });
   } else if (emotion === "sad") {
     ctx.beginPath(); ctx.arc(-1, 13, 5, 1.1 * Math.PI, 1.9 * Math.PI); ctx.stroke();
     ctx.fillStyle = "rgba(147,197,253,0.6)";
@@ -366,7 +366,7 @@ function drawCharacter(ctx, emotion, frame, blinking, dir, jumpY, dancePhase, ou
     const cc = ["#fbbf24", "#f472b6", "#34d399", "#60a5fa", "#a78bfa", "#fb923c"];
     for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2, r = 24; ctx.fillStyle = cc[i]; ctx.beginPath(); ctx.arc(Math.cos(a) * r, Math.sin(a) * r - 4, 2.5, 0, Math.PI * 2); ctx.fill(); }
   }
-  if (emotion === "wrong")   { ctx.font = "bold 13px sans-serif"; ctx.fillStyle = "#f87171"; ctx.fillText("✗", 15, -HH / 2 - 3); }
+  if (emotion === "wrong") { ctx.font = "bold 13px sans-serif"; ctx.fillStyle = "#f87171"; ctx.fillText("✗", 15, -HH / 2 - 3); }
   if (emotion === "skipped") { ctx.font = "13px sans-serif"; ctx.fillStyle = "#fbbf24"; ctx.fillText("?", 15, -HH / 2 - 3); }
   if (emotion === "dancing") { ctx.font = "14px sans-serif"; ctx.fillText(["⭐", "✨"][Math.floor(frame / 10) % 2], 16, -HH / 2 - 3); }
   ctx.restore(); ctx.restore();
@@ -376,7 +376,7 @@ function drawCharacter(ctx, emotion, frame, blinking, dir, jumpY, dancePhase, ou
 
 function CharacterCanvas({ phase, answered, emotion, sectionRef }) {
   const canvasRef = useRef(null);
-  const stateRef  = useRef({
+  const stateRef = useRef({
     cx: 120, cy: 120, vx: 0.7, vy: 0.55, dir: 1,
     frame: 0, blink: 0, blinking: false, emTimer: 0,
     jumpY: 0, shakeX: 0, dancePhase: 0,
@@ -384,15 +384,15 @@ function CharacterCanvas({ phase, answered, emotion, sectionRef }) {
     // freeze position for result screen
     frozenX: null, frozenY: null,
   });
-  const emotionRef  = useRef(emotion);
-  const phaseRef    = useRef(phase);
+  const emotionRef = useRef(emotion);
+  const phaseRef = useRef(phase);
   const answeredRef = useRef(answered);
   const [toast, setToast] = useState({ msg: "", visible: false });
   const toastTimerRef = useRef(null);
   const rafRef = useRef(null);
 
-  useEffect(() => { emotionRef.current  = emotion;  }, [emotion]);
-  useEffect(() => { phaseRef.current    = phase;    }, [phase]);
+  useEffect(() => { emotionRef.current = emotion; }, [emotion]);
+  useEffect(() => { phaseRef.current = phase; }, [phase]);
   useEffect(() => { answeredRef.current = answered; }, [answered]);
 
   const showToast = useCallback((msg) => {
@@ -402,10 +402,10 @@ function CharacterCanvas({ phase, answered, emotion, sectionRef }) {
   }, []);
 
   useEffect(() => {
-    const cv  = canvasRef.current;
+    const cv = canvasRef.current;
     if (!cv) return;
     const ctx = cv.getContext("2d");
-    const s   = stateRef.current;
+    const s = stateRef.current;
 
     function getSB() {
       const el = sectionRef?.current;
@@ -434,15 +434,15 @@ function CharacterCanvas({ phase, answered, emotion, sectionRef }) {
       const W = sb.w || window.innerWidth, H = sb.h || window.innerHeight, P = 28;
       steer();
       s.cx += s.vx; s.cy += s.vy;
-      if (s.cx < P)     { s.cx = P;     s.vx =  Math.abs(s.vx) + 0.05; }
+      if (s.cx < P) { s.cx = P; s.vx = Math.abs(s.vx) + 0.05; }
       if (s.cx > W - P) { s.cx = W - P; s.vx = -(Math.abs(s.vx) + 0.05); }
-      if (s.cy < P)     { s.cy = P;     s.vy =  Math.abs(s.vy) + 0.05; }
+      if (s.cy < P) { s.cy = P; s.vy = Math.abs(s.vy) + 0.05; }
       if (s.cy > H - P) { s.cy = H - P; s.vy = -(Math.abs(s.vy) + 0.05); }
       const sp = Math.hypot(s.vx, s.vy);
       if (sp > 1.0) { s.vx = s.vx / sp * 1.0; s.vy = s.vy / sp * 1.0; }
       if (sp < 0.5) { s.vx = s.vx / sp * 0.5; s.vy = s.vy / sp * 0.5; }
       if (Math.random() < 0.004) { s.vx += (Math.random() - 0.5) * 0.25; s.vy += (Math.random() - 0.5) * 0.25; }
-      if (s.vx >  0.08) s.dir =  1;
+      if (s.vx > 0.08) s.dir = 1;
       if (s.vx < -0.08) s.dir = -1;
     }
 
@@ -464,7 +464,7 @@ function CharacterCanvas({ phase, answered, emotion, sectionRef }) {
         else { s.jumpY = 0; s.shakeX = 0; }
         const sb = getSB();
         cv.style.left = (sb.x + s.cx - 55) + "px";
-        cv.style.top  = (sb.y + s.cy - 90) + "px";
+        cv.style.top = (sb.y + s.cy - 90) + "px";
         drawCharacter(ctx, e, s.frame, s.blinking, s.dir, s.jumpY, s.dancePhase, OUTFITS[s.outfitIdx]);
         rafRef.current = requestAnimationFrame(loop);
         return;
@@ -478,15 +478,15 @@ function CharacterCanvas({ phase, answered, emotion, sectionRef }) {
       if (s.blink > 110) { s.blinking = true; if (s.blink > 122) { s.blinking = false; s.blink = 0; } }
       s.emTimer++;
 
-      if (e === "correct")  s.jumpY  = Math.max(0, Math.sin(s.emTimer * 0.2) * 36);
-      else if (e === "wrong")   s.shakeX = Math.sin(s.emTimer * 0.65) * 7 * Math.max(0, 1 - s.emTimer / 55);
+      if (e === "correct") s.jumpY = Math.max(0, Math.sin(s.emTimer * 0.2) * 36);
+      else if (e === "wrong") s.shakeX = Math.sin(s.emTimer * 0.65) * 7 * Math.max(0, 1 - s.emTimer / 55);
       else if (e === "dancing") { s.dancePhase++; s.jumpY = Math.abs(Math.sin(s.emTimer * 0.22)) * 18; }
       else { s.jumpY = 0; s.shakeX = 0; }
 
       s.outfitTimer++;
       if (s.outfitTimer >= OUTFIT_INTERVAL) {
         s.outfitTimer = 0;
-        s.outfitIdx   = (s.outfitIdx + 1) % OUTFITS.length;
+        s.outfitIdx = (s.outfitIdx + 1) % OUTFITS.length;
         showToast("👕 Outfit changed: " + OUTFITS[s.outfitIdx].name);
       }
 
@@ -495,7 +495,7 @@ function CharacterCanvas({ phase, answered, emotion, sectionRef }) {
 
       const sb = getSB();
       cv.style.left = (sb.x + s.cx - 55) + "px";
-      cv.style.top  = (sb.y + s.cy - 90) + "px";
+      cv.style.top = (sb.y + s.cy - 90) + "px";
       drawCharacter(ctx, e, s.frame, s.blinking, s.dir, s.jumpY, s.dancePhase, OUTFITS[s.outfitIdx]);
       rafRef.current = requestAnimationFrame(loop);
     }
@@ -540,12 +540,12 @@ function MuteButton({ muted, onToggle }) {
 const Orbs = () => (
   <>
     <div style={{ position: "absolute", width: 500, height: 500, top: "-15%", left: "55%", background: "rgba(139,92,246,0.07)", borderRadius: "50%", filter: "blur(90px)", pointerEvents: "none", zIndex: 0 }} />
-    <div style={{ position: "absolute", width: 400, height: 400, top: "55%",  left: "-8%", background: "rgba(236,72,153,0.05)", borderRadius: "50%", filter: "blur(90px)", pointerEvents: "none", zIndex: 0 }} />
+    <div style={{ position: "absolute", width: 400, height: 400, top: "55%", left: "-8%", background: "rgba(236,72,153,0.05)", borderRadius: "50%", filter: "blur(90px)", pointerEvents: "none", zIndex: 0 }} />
   </>
 );
 
-const screen   = { minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px 16px", position: "relative", overflow: "hidden" };
-const card     = { background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 20, padding: "28px 24px" };
+const screen = { minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px 16px", position: "relative", overflow: "hidden" };
+const card = { background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 20, padding: "28px 24px" };
 const statCard = { background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 18, padding: "20px 24px", minWidth: 100, textAlign: "center", flex: 1, maxWidth: 180 };
 
 // ─── Intro Screen ─────────────────────────────────────────────────────────────
@@ -592,9 +592,9 @@ function ModeScreen({ selectedMode, onSelectMode, onBack, onStart }) {
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, width: "100%", maxWidth: 500, margin: "0 auto 32px" }}>
           {MODES.map(m => (
             <button key={m.id} onClick={() => onSelectMode(m.id)} style={{
-              background:  selectedMode === m.id ? `${m.color}20` : "rgba(255,255,255,.04)",
-              border:      `2px solid ${selectedMode === m.id ? m.color : "rgba(255,255,255,.1)"}`,
-              boxShadow:   selectedMode === m.id ? `0 0 24px ${m.color}28` : "none",
+              background: selectedMode === m.id ? `${m.color}20` : "rgba(255,255,255,.04)",
+              border: `2px solid ${selectedMode === m.id ? m.color : "rgba(255,255,255,.1)"}`,
+              boxShadow: selectedMode === m.id ? `0 0 24px ${m.color}28` : "none",
               borderRadius: 16, padding: "18px 14px", color: "#fffffe",
               cursor: "pointer", fontFamily: "inherit", fontSize: 13, fontWeight: 600, textAlign: "center",
             }}>
@@ -618,11 +618,11 @@ function ModeScreen({ selectedMode, onSelectMode, onBack, onStart }) {
 function PlayingScreen({ qs, cur, answered, sel, fill, onFillChange, score, streak, mode, timeLeft, results, onMCQ, onTF, onFill, getCorrectAnswer }) {
   const q = qs[cur];
   if (!q) return null;
-  const M       = MODES.find(x => x.id === mode) || MODES[1];
-  const catClr  = CAT_CLR[q.c] || "#a78bfa";
+  const M = MODES.find(x => x.id === mode) || MODES[1];
+  const catClr = CAT_CLR[q.c] || "#a78bfa";
   const timerClr = timeLeft <= 5 ? "#ff4040" : M.color;
-  const pct     = timeLeft / M.time;
-  const circ    = 2 * Math.PI * 24;
+  const pct = timeLeft / M.time;
+  const circ = 2 * Math.PI * 24;
 
   return (
     <section id="qs" style={{ ...screen, padding: "20px 14px" }}>
@@ -671,7 +671,7 @@ function PlayingScreen({ qs, cur, answered, sel, fill, onFillChange, score, stre
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {q.o.map((opt, i) => {
                 const correct = answered && i === getCorrectAnswer(cur);
-                const wrong   = answered && sel === i && !correct;
+                const wrong = answered && sel === i && !correct;
                 return (
                   <button key={i} disabled={answered} onClick={() => onMCQ(i)} style={{
                     width: "100%", background: correct ? "rgba(67,233,123,.14)" : wrong ? "rgba(255,101,132,.14)" : "rgba(255,255,255,0.04)",
@@ -694,7 +694,7 @@ function PlayingScreen({ qs, cur, answered, sel, fill, onFillChange, score, stre
             <div style={{ display: "flex", gap: 12 }}>
               {[true, false].map(v => {
                 const correct = answered && v === getCorrectAnswer(cur);
-                const wrong   = answered && sel === v && !correct;
+                const wrong = answered && sel === v && !correct;
                 return (
                   <button key={String(v)} disabled={answered} onClick={() => onTF(v)} style={{
                     flex: 1, padding: 18, borderRadius: 14, fontSize: 15, fontWeight: 700, cursor: "pointer",
@@ -740,9 +740,9 @@ function PlayingScreen({ qs, cur, answered, sel, fill, onFillChange, score, stre
 // ─── Result Screen ────────────────────────────────────────────────────────────
 
 function ResultScreen({ results, score, mode, onChangeMode, onPlayAgain }) {
-  const ok  = results.filter(r => r.ok).length;
+  const ok = results.filter(r => r.ok).length;
   const pct = Math.round((score / (TOTAL * 10)) * 100);
-  const M   = MODES.find(x => x.id === mode) || MODES[1];
+  const M = MODES.find(x => x.id === mode) || MODES[1];
   return (
     <section id="qs" style={{ ...screen, padding: "24px 14px 60px" }}>
       <Orbs />
@@ -762,7 +762,7 @@ function ResultScreen({ results, score, mode, onChangeMode, onPlayAgain }) {
             <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px", background: r.ok ? "rgba(67,233,123,.06)" : "rgba(255,101,132,.06)", borderBottom: "1px solid rgba(255,255,255,.05)" }}>
               <span style={{ fontSize: 15, flexShrink: 0 }}>{r.ok ? "✅" : "❌"}</span>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, color: "#cbd5e1", lineHeight: 1.4 }}>{r.q.q.replace(/\n.*/,"").slice(0, 70)}{r.q.q.length > 70 ? "…" : ""}</div>
+                <div style={{ fontSize: 13, color: "#cbd5e1", lineHeight: 1.4 }}>{r.q.q.replace(/\n.*/, "").slice(0, 70)}{r.q.q.length > 70 ? "…" : ""}</div>
                 {!r.ok && <div style={{ fontSize: 11, color: "#6b7280", marginTop: 2 }}>Answer: <span style={{ color: "#43e97b" }}>{String(r.q.a)}</span></div>}
               </div>
               <span style={{ fontSize: 12, fontWeight: 700, color: r.ok ? "#43e97b" : "#6b7280", flexShrink: 0 }}>{r.ok ? "+10" : "0"}</span>
@@ -781,26 +781,26 @@ function ResultScreen({ results, score, mode, onChangeMode, onPlayAgain }) {
 // ─── Main App ─────────────────────────────────────────────────────────────────
 
 export default function DevQuiz() {
-  const [phase,    setPhase]    = useState("intro");
-  const [mode,     setMode]     = useState("medium");
-  const [qs,       setQs]       = useState([]);
-  const [cur,      setCur]      = useState(0);
-  const [sel,      setSel]      = useState(null);
-  const [fill,     setFill]     = useState("");
+  const [phase, setPhase] = useState("intro");
+  const [mode, setMode] = useState("medium");
+  const [qs, setQs] = useState([]);
+  const [cur, setCur] = useState(0);
+  const [sel, setSel] = useState(null);
+  const [fill, setFill] = useState("");
   const [answered, setAnswered] = useState(false);
-  const [score,    setScore]    = useState(0);
-  const [results,  setResults]  = useState([]);
+  const [score, setScore] = useState(0);
+  const [results, setResults] = useState([]);
   const [timeLeft, setTimeLeft] = useState(20);
-  const [streak,   setStreak]   = useState(0);
-  const [emotion,  setEmotion]  = useState("idle");
-  const [muted,    setMuted]    = useState(false);
+  const [streak, setStreak] = useState(0);
+  const [emotion, setEmotion] = useState("idle");
+  const [muted, setMuted] = useState(false);
   const sectionRef = useRef(null);
 
   const answerCacheRef = useRef({});
-  const committedRef   = useRef(false);
-  const lastCommitRef  = useRef(0);
-  const timerRef       = useRef(null);
-  const prevTimeRef    = useRef(null);
+  const committedRef = useRef(false);
+  const lastCommitRef = useRef(0);
+  const timerRef = useRef(null);
+  const prevTimeRef = useRef(null);
 
   // ── Audio ────────────────────────────────────────────────────────────────
   const toggleMute = () => {
@@ -826,7 +826,7 @@ export default function DevQuiz() {
     if (phase !== "playing" || answered) return;
     if (prevTimeRef.current === null) { prevTimeRef.current = timeLeft; return; }
     if (timeLeft <= 5 && timeLeft > 0) getAudio().playUrgentTick();
-    else if (timeLeft > 0)             getAudio().playTick();
+    else if (timeLeft > 0) getAudio().playTick();
     prevTimeRef.current = timeLeft;
   }, [timeLeft, phase, answered]);
 
@@ -848,9 +848,9 @@ export default function DevQuiz() {
   const checkAns = useCallback((q, idx, userSel) => {
     const correct = getCA(idx);
     if (correct === null) return false;
-    if (q.t === "mcq")      return userSel === correct;
+    if (q.t === "mcq") return userSel === correct;
     if (q.t === "truefalse") return userSel === correct;
-    if (q.t === "fill")     return typeof userSel === "string" && userSel.trim().toLowerCase() === String(correct).toLowerCase();
+    if (q.t === "fill") return typeof userSel === "string" && userSel.trim().toLowerCase() === String(correct).toLowerCase();
     return false;
   }, [getCA]);
 
@@ -876,16 +876,16 @@ export default function DevQuiz() {
     committedRef.current = true;
     clearInterval(timerRef.current);
 
-    const curQs  = commitQs  || qs;
+    const curQs = commitQs || qs;
     const curIdx = commitCur !== undefined ? commitCur : cur;
     const curMode = commitMode || mode;
-    const q      = curQs[curIdx];
-    const blank  = userAnswer === null || userAnswer === undefined || (typeof userAnswer === "string" && userAnswer.trim() === "");
-    const ok     = !timedOut && !blank && checkAns(q, curIdx, userAnswer);
+    const q = curQs[curIdx];
+    const blank = userAnswer === null || userAnswer === undefined || (typeof userAnswer === "string" && userAnswer.trim() === "");
+    const ok = !timedOut && !blank && checkAns(q, curIdx, userAnswer);
 
     // Play sound effect
     const audio = getAudio();
-    if (ok)                      audio.playCorrect();
+    if (ok) audio.playCorrect();
     else if (!blank && !timedOut) audio.playWrong();
 
     setAnswered(true);
@@ -907,7 +907,7 @@ export default function DevQuiz() {
           const finalScore = s;
           setTimeout(() => {
             if (finalScore / (TOTAL * 10) >= 0.5) audio.playWin();
-            else                                    audio.playLose();
+            else audio.playLose();
           }, 100);
           return s;
         });
@@ -945,9 +945,9 @@ export default function DevQuiz() {
     setTimeout(() => startTimer(m, shuffled, 0), 50);
   }, [mode, startTimer]);
 
-  const handleMCQ  = (i) => { if (!answered && canCommit()) commitRef.current(i); };
-  const handleTF   = (v) => { if (!answered && canCommit()) commitRef.current(v); };
-  const handleFill = ()  => { if (!answered && fill.trim() && canCommit()) commitRef.current(fill); };
+  const handleMCQ = (i) => { if (!answered && canCommit()) commitRef.current(i); };
+  const handleTF = (v) => { if (!answered && canCommit()) commitRef.current(v); };
+  const handleFill = () => { if (!answered && fill.trim() && canCommit()) commitRef.current(fill); };
 
   useEffect(() => () => clearInterval(timerRef.current), []);
 
@@ -960,7 +960,7 @@ export default function DevQuiz() {
       <CharacterCanvas phase={phase} answered={answered} emotion={emotion} sectionRef={sectionRef} />
 
       {phase === "intro" && <IntroScreen onGoMode={() => setPhase("mode")} />}
-      {phase === "mode"  && (
+      {phase === "mode" && (
         <ModeScreen selectedMode={mode} onSelectMode={setMode} onBack={() => setPhase("intro")} onStart={() => startQuiz(mode)} />
       )}
       {phase === "playing" && (

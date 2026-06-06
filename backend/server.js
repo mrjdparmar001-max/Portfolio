@@ -8,17 +8,19 @@ const path = require("path");
 
 const app = express();
 
+/* DNS */
 dns.setDefaultResultOrder("ipv4first");
 dns.setServers(["8.8.8.8", "1.1.1.1"]);
 
 /* CORS */
-const cors = require("cors");
+app.use(
+  cors({
+    origin: true,
+    credentials: true,
+  })
+);
 
-app.use(cors({
-  origin: true,
-  credentials: true,
-}));
-
+/* Middleware */
 app.use(express.json());
 
 /* Static Uploads */
@@ -38,16 +40,16 @@ app.get("/", (req, res) => {
   res.json({ message: "Jaydip Parmar Portfolio API Running" });
 });
 
-/* MongoDB */
+/* MongoDB Connection */
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => {
     console.log("✅ MongoDB Connected");
 
-    app.listen(process.env.PORT || 5000, () => {
-      console.log(
-        `🚀 Server running on port ${process.env.PORT || 5000}`
-      );
+    const PORT = process.env.PORT || 5000;
+
+    app.listen(PORT, () => {
+      console.log(`🚀 Server running on port ${PORT}`);
     });
   })
   .catch((err) => {
