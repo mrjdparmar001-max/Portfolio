@@ -1,28 +1,43 @@
-import axios from 'axios';
+import axios from "axios";
 
-// Environment variable from .env
-const BASE = import.meta.env.VITE_API_URL;
-
-// Create Axios instance
+// Axios Instance
 const API = axios.create({
-  baseURL: BASE,
+  baseURL: import.meta.env.VITE_API_URL,
   headers: {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   },
 });
 
-// Profile
-export const getProfile = () => API.get('/profile');
+/* ==========================
+   PROFILE
+========================== */
+export const getProfile = () => API.get("/profile");
 
-// Projects
-export const getProjects = () => API.get('/projects');
+/* ==========================
+   PROJECTS
+========================== */
+export const getProjects = () => API.get("/projects");
 
-// Compliments
-export const getCompliments = () => API.get('/compliments');
-export const sendCompliment = (data) => API.post('/compliments', data);
+/* ==========================
+   SKILLS
+========================== */
+export const getSkills = () => API.get("/skills");
 
-// Messages
-export const sendMessage = (data) => API.post('/messages', data);
+/* ==========================
+   COMPLIMENTS
+========================== */
+export const getCompliments = () => API.get("/compliments");
 
-// Optional default export
+export const sendCompliment = (data) =>
+  API.post("/compliments", data);
+
+/* ==========================
+   MESSAGES
+========================== */
+export const sendMessage = (data) =>
+  API.post("/messages", data);
+
+/* ==========================
+   EXPORT
+========================== */
 export default API;
