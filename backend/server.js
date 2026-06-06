@@ -10,7 +10,7 @@ app.use(
     origin: [
       "http://localhost:5173",
       "http://localhost:3000",
-      "https://portfolio-kohl-pi-nodf3yjqji.vercel.app"
+      "https://portfolio-blush-six-72.vercel.app"
     ],
     credentials: true,
   })
