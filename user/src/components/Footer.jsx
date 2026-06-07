@@ -186,7 +186,7 @@ function CopyrightLine({ theme }) {
         Jaydip Parmar
       </motion.span>
       <span style={{ opacity: 0.4 }}>·</span>
-      <span>© {year}</span>
+      <span>Ⓡ {year}</span>
     </motion.p>
   );
 }
