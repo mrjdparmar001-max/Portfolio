@@ -1,0 +1,101 @@
+/*
+ * performance.css  —  drop this into your main CSS / index.css
+ *
+ * Covers:
+ *  1. Smooth scroll — buttery native scroll on all browsers
+ *  2. GPU-compositing hints on frequently animated elements
+ *  3. Reduced-motion safety net
+ *  4. Font rendering & layout stability fixes
+ */
+
+/* ─── 1. SMOOTH SCROLL ───────────────────────────────────────────────────── */
+html {
+  scroll-behavior: smooth;
+}
+
+/* For browsers that support scroll-timeline, ensure paint doesn't stutter */
+* {
+  box-sizing: border-box;
+}
+
+/* ─── 2. GPU COMPOSITING HINTS ───────────────────────────────────────────── */
+/*
+  These tell the browser to promote specific elements to their own
+  compositor layer, which prevents repaints when they animate.
+  Only add will-change to elements that genuinely animate.
+*/
+
+/* Framer Motion animated root elements */
+[data-framer-component-type],
+[style*="transform"],
+[style*="opacity"] {
+  /* Let Framer handle it — we set will-change inline where needed */
+}
+
+/* Navbar: always composited because it's sticky + has backdrop-filter */
+nav[style*="position: fixed"] {
+  will-change: background, border-bottom;
+  transform: translateZ(0); /* force composite layer */
+  -webkit-transform: translateZ(0);
+}
+
+/* Canvas cursor: always on its own layer */
+canvas[style*="position: fixed"] {
+  will-change: contents;
+}
+
+/* ─── 3. SCROLL CONTAINER OPTIMISATION ──────────────────────────────────── */
+body {
+  /* Prevents layout thrashing on mobile when address bar hides/shows */
+  overflow-x: hidden;
+  /* Smooth momentum scroll on iOS */
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Sections: contain paint so off-screen sections don't affect on-screen ones */
+section {
+  contain: layout style;
+}
+
+/* ─── 4. REDUCED MOTION SAFETY NET ──────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Keep opacity transitions for fade-in UX — just instant */
+  [data-framer-component-type] {
+    transition: opacity 0.15s ease !important;
+  }
+}
+
+/* ─── 5. FONT RENDERING ──────────────────────────────────────────────────── */
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeSpeed; /* avoids ligature recalc jank */
+}
+
+/* ─── 6. IMAGE STABILITY ─────────────────────────────────────────────────── */
+img {
+  content-visibility: auto; /* skip rendering off-screen images */
+}
+
+/* Hero avatar: LCP element — eager, high priority */
+#home img[alt="Profile"] {
+  content-visibility: visible; /* override — always render the LCP image */
+}
+
+/* ─── 7. LAYOUT SHIFT PREVENTION ────────────────────────────────────────── */
+/* Reserve space for sections before JS loads so the page doesn't jump */
+#about,
+#projects,
+#testimonials,
+#contact {
+  min-height: 400px;
+}
