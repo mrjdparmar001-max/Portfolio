@@ -1,4 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useTheme } from "../context/ThemeContext";
+
+// ─── Data ────────────────────────────────────────────────────────────────────
 
 const ALL_Q = [
   { id: 1, t: "mcq", c: "JavaScript", q: "Which method removes the last element from an array?", o: ["shift()", "pop()", "splice()", "slice()"], a: 1 },
@@ -41,7 +44,11 @@ const OUTFITS = [
 ];
 
 const TOTAL = 10;
-const OUTFIT_INTERVAL = 3600;
+// FIX 4: Outfit changes every hour = 3600 seconds = 3600000ms real time
+// Track via Date.now() instead of frame count to survive scroll/tab-blur
+const OUTFIT_INTERVAL_MS = 3600 * 1000;
+
+// ─── Security helpers ────────────────────────────────────────────────────────
 
 const _salt = Math.random().toString(36).slice(2);
 const _enc = (v) => btoa(_salt + JSON.stringify(v) + _salt);
@@ -56,10 +63,14 @@ function secureShuffle(arr) {
   return a;
 }
 
-// ─── Audio Engine ─────────────────────────────────────────────────────────────
+// ─── Audio Engine (Web Audio API) ────────────────────────────────────────────
+
 function createAudioEngine() {
-  let ctx = null, bgGain = null, bgNodes = [], bgPlaying = false, muted = false;
-  let bgLoopTimer = null;
+  let ctx = null;
+  let bgGain = null;
+  let bgNodes = [];
+  let bgPlaying = false;
+  let muted = false;
 
   function getCtx() {
     if (!ctx) {
@@ -78,38 +89,52 @@ function createAudioEngine() {
     const c = getCtx();
     bgNodes.forEach(n => { try { n.stop(); } catch { } });
     bgNodes = [];
-    const notes = happy ? [261.63, 329.63, 392.00, 523.25, 392.00, 329.63] : [220.00, 261.63, 220.00, 196.00, 174.61, 196.00];
+
+    const notes = happy
+      ? [261.63, 329.63, 392.00, 523.25, 392.00, 329.63]
+      : [220.00, 261.63, 220.00, 196.00, 174.61, 196.00];
+
     const tempo = happy ? 0.38 : 0.55;
     let t = c.currentTime + 0.05;
 
     function scheduleLoop() {
       notes.forEach((freq, i) => {
-        const osc = c.createOscillator(), g = c.createGain();
+        const osc = c.createOscillator();
+        const g = c.createGain();
         osc.type = happy ? "triangle" : "sine";
         osc.frequency.value = freq;
         g.gain.setValueAtTime(0, t + i * tempo);
         g.gain.linearRampToValueAtTime(0.35, t + i * tempo + 0.04);
         g.gain.exponentialRampToValueAtTime(0.001, t + i * tempo + tempo * 0.85);
         osc.connect(g); g.connect(bgGain);
-        osc.start(t + i * tempo); osc.stop(t + i * tempo + tempo);
+        osc.start(t + i * tempo);
+        osc.stop(t + i * tempo + tempo);
         bgNodes.push(osc);
+
         if (i % 2 === 0) {
-          const bass = c.createOscillator(), bg2 = c.createGain();
-          bass.type = "sine"; bass.frequency.value = freq / 2;
+          const bass = c.createOscillator();
+          const bg2 = c.createGain();
+          bass.type = "sine";
+          bass.frequency.value = freq / 2;
           bg2.gain.setValueAtTime(0, t + i * tempo);
           bg2.gain.linearRampToValueAtTime(0.18, t + i * tempo + 0.06);
           bg2.gain.exponentialRampToValueAtTime(0.001, t + i * tempo + tempo * 0.9);
           bass.connect(bg2); bg2.connect(bgGain);
-          bass.start(t + i * tempo); bass.stop(t + i * tempo + tempo);
+          bass.start(t + i * tempo);
+          bass.stop(t + i * tempo + tempo);
           bgNodes.push(bass);
         }
       });
+
       const loopDuration = notes.length * tempo;
       t += loopDuration;
       bgLoopTimer = setTimeout(scheduleLoop, (loopDuration - 0.3) * 1000);
     }
+
     scheduleLoop();
   }
+
+  let bgLoopTimer = null;
 
   function stopBg() {
     bgPlaying = false;
@@ -122,11 +147,16 @@ function createAudioEngine() {
     if (muted) return;
     const c = getCtx();
     [523.25, 659.25, 783.99].forEach((freq, i) => {
-      const osc = c.createOscillator(), g = c.createGain();
-      osc.type = "triangle"; osc.frequency.value = freq;
+      const osc = c.createOscillator();
+      const g = c.createGain();
+      osc.type = "triangle";
+      osc.frequency.value = freq;
       const t = c.currentTime + i * 0.1;
-      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.4, t + 0.03); g.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
-      osc.connect(g); g.connect(ctx.destination); osc.start(t); osc.stop(t + 0.26);
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.4, t + 0.03);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+      osc.connect(g); g.connect(ctx.destination);
+      osc.start(t); osc.stop(t + 0.26);
     });
   }
 
@@ -134,55 +164,86 @@ function createAudioEngine() {
     if (muted) return;
     const c = getCtx();
     [220, 196].forEach((freq, i) => {
-      const osc = c.createOscillator(), g = c.createGain();
-      osc.type = "sawtooth"; osc.frequency.value = freq;
+      const osc = c.createOscillator();
+      const g = c.createGain();
+      osc.type = "sawtooth";
+      osc.frequency.value = freq;
       const t = c.currentTime + i * 0.12;
-      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.3, t + 0.04); g.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
-      osc.connect(g); g.connect(ctx.destination); osc.start(t); osc.stop(t + 0.23);
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.3, t + 0.04);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+      osc.connect(g); g.connect(ctx.destination);
+      osc.start(t); osc.stop(t + 0.23);
     });
   }
 
   function playTick() {
     if (muted) return;
-    const c = getCtx(), osc = c.createOscillator(), g = c.createGain();
-    osc.type = "sine"; osc.frequency.value = 880;
-    g.gain.setValueAtTime(0.18, c.currentTime); g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.08);
-    osc.connect(g); g.connect(ctx.destination); osc.start(); osc.stop(c.currentTime + 0.09);
+    const c = getCtx();
+    const osc = c.createOscillator();
+    const g = c.createGain();
+    osc.type = "sine";
+    osc.frequency.value = 880;
+    g.gain.setValueAtTime(0.18, c.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.08);
+    osc.connect(g); g.connect(ctx.destination);
+    osc.start(); osc.stop(c.currentTime + 0.09);
   }
 
   function playUrgentTick() {
     if (muted) return;
-    const c = getCtx(), osc = c.createOscillator(), g = c.createGain();
-    osc.type = "square"; osc.frequency.value = 1100;
-    g.gain.setValueAtTime(0.22, c.currentTime); g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.07);
-    osc.connect(g); g.connect(ctx.destination); osc.start(); osc.stop(c.currentTime + 0.08);
+    const c = getCtx();
+    const osc = c.createOscillator();
+    const g = c.createGain();
+    osc.type = "square";
+    osc.frequency.value = 1100;
+    g.gain.setValueAtTime(0.22, c.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.07);
+    osc.connect(g); g.connect(ctx.destination);
+    osc.start(); osc.stop(c.currentTime + 0.08);
   }
 
   function playWin() {
     if (muted) return;
     const c = getCtx();
-    [523.25, 659.25, 783.99, 1046.5, 783.99, 1046.5].forEach((freq, i) => {
-      const osc = c.createOscillator(), g = c.createGain();
-      osc.type = "triangle"; osc.frequency.value = freq;
+    const fanfare = [523.25, 659.25, 783.99, 1046.5, 783.99, 1046.5];
+    fanfare.forEach((freq, i) => {
+      const osc = c.createOscillator();
+      const g = c.createGain();
+      osc.type = "triangle";
+      osc.frequency.value = freq;
       const t = c.currentTime + i * 0.12;
-      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.5, t + 0.04); g.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
-      osc.connect(g); g.connect(ctx.destination); osc.start(t); osc.stop(t + 0.31);
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.5, t + 0.04);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+      osc.connect(g); g.connect(ctx.destination);
+      osc.start(t); osc.stop(t + 0.31);
     });
   }
 
   function playLose() {
     if (muted) return;
     const c = getCtx();
-    [392, 349.23, 329.63, 261.63].forEach((freq, i) => {
-      const osc = c.createOscillator(), g = c.createGain();
-      osc.type = "sine"; osc.frequency.value = freq;
+    const sad = [392, 349.23, 329.63, 261.63];
+    sad.forEach((freq, i) => {
+      const osc = c.createOscillator();
+      const g = c.createGain();
+      osc.type = "sine";
+      osc.frequency.value = freq;
       const t = c.currentTime + i * 0.2;
-      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.4, t + 0.05); g.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
-      osc.connect(g); g.connect(ctx.destination); osc.start(t); osc.stop(t + 0.46);
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.4, t + 0.05);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
+      osc.connect(g); g.connect(ctx.destination);
+      osc.start(t); osc.stop(t + 0.46);
     });
   }
 
-  function setMuted(val) { muted = val; if (bgGain) bgGain.gain.value = val ? 0 : 0.18; }
+  function setMuted(val) {
+    muted = val;
+    if (bgGain) bgGain.gain.value = val ? 0 : 0.18;
+  }
+
   function isMuted() { return muted; }
 
   return { startBg, stopBg, playCorrect, playWrong, playTick, playUrgentTick, playWin, playLose, setMuted, isMuted };
@@ -194,7 +255,8 @@ function getAudio() {
   return _audioEngine;
 }
 
-// ─── Character Drawing ────────────────────────────────────────────────────────
+// ─── Canvas Character drawing ─────────────────────────────────────────────────
+
 function drawCharacter(ctx, emotion, frame, blinking, dir, jumpY, dancePhase, outfit) {
   ctx.clearRect(0, 0, 110, 180);
   const O = outfit;
@@ -306,20 +368,22 @@ function drawCharacter(ctx, emotion, frame, blinking, dir, jumpY, dancePhase, ou
   ctx.restore(); ctx.restore();
 }
 
-// ─── FIX: Character Canvas — scroll-stable positioning ───────────────────────
-// Character position is stored as fraction of container (0..1) so scroll doesn't glitch it.
-// We use the container's getBoundingClientRect each frame for accurate viewport coords.
+// ─── Character Canvas Component ───────────────────────────────────────────────
+// FIX 4: Character position is now relative to its CONTAINER (the quiz section div),
+// not the viewport. This prevents glitching when the page scrolls.
+// The canvas uses position:absolute inside a relative container instead of position:fixed.
 
 function CharacterCanvas({ phase, answered, emotion, containerRef }) {
   const canvasRef = useRef(null);
   const stateRef = useRef({
-    // positions as fractions of container width/height (0..1)
-    fx: 0.15, fy: 0.55,
-    vx: 0.7, vy: 0.55, dir: 1,
+    // Start at a safe position within the container
+    cx: 120, cy: 200, vx: 0.7, vy: 0.55, dir: 1,
     frame: 0, blink: 0, blinking: false, emTimer: 0,
     jumpY: 0, shakeX: 0, dancePhase: 0,
-    outfitIdx: 0, outfitTimer: 0,
-    frozenFx: null, frozenFy: null,
+    outfitIdx: 0,
+    // FIX 4: Use real time for outfit changes, not frame counts
+    outfitChangedAt: Date.now(),
+    frozenX: null, frozenY: null,
   });
   const emotionRef = useRef(emotion);
   const phaseRef = useRef(phase);
@@ -344,88 +408,83 @@ function CharacterCanvas({ phase, answered, emotion, containerRef }) {
     const ctx = cv.getContext("2d");
     const s = stateRef.current;
 
-    // Get container rect (viewport-relative). Works correctly with scroll.
-    function getContainerRect() {
+    // FIX 4: Get bounds of the CONTAINER div (not screen)
+    function getContainerSize() {
       const el = containerRef?.current;
-      if (!el) return { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight };
-      return el.getBoundingClientRect();
+      if (!el) return { w: window.innerWidth, h: window.innerHeight };
+      return { w: el.offsetWidth, h: el.offsetHeight };
     }
 
-    // Get question card rect in container-local coords (accounts for scroll)
-    function getCardLocalRect(cr) {
+    // FIX 4: Find the question card relative to the container
+    function getQCardBounds() {
       const el = document.getElementById("qcard");
-      if (!el) return null;
-      const er = el.getBoundingClientRect();
-      return {
-        x: er.left - cr.left,
-        y: er.top - cr.top,
-        w: er.width,
-        h: er.height,
-      };
+      const container = containerRef?.current;
+      if (!el || !container) return null;
+      const cr = el.getBoundingClientRect();
+      const pr = container.getBoundingClientRect();
+      return { x: cr.left - pr.left, y: cr.top - pr.top, w: cr.width, h: cr.height };
     }
 
-    function steer(cr) {
-      const W = cr.width, H = cr.height;
-      const cx = s.fx * W, cy = s.fy * H;
-      const card = getCardLocalRect(cr);
-      if (!card) return;
-      const PAD = 70;
-      const mcx = card.x + card.w / 2, mcy = card.y + card.h / 2;
-      const hw = card.w / 2 + PAD, hh = card.h / 2 + PAD;
-      const dx = cx - mcx, dy = cy - mcy;
+    function steer() {
+      const cb = getQCardBounds();
+      if (!cb) return;
+      const PAD = 70, mcx = cb.x + cb.w / 2, mcy = cb.y + cb.h / 2;
+      const hw = cb.w / 2 + PAD, hh = cb.h / 2 + PAD;
+      const dx = s.cx - mcx, dy = s.cy - mcy;
       if (Math.abs(dx) < hw && Math.abs(dy) < hh) {
         if (Math.abs(dx) / hw < Math.abs(dy) / hh) s.vy += (dy > 0 ? 1 : -1) * 0.10;
         else s.vx += (dx > 0 ? 1 : -1) * 0.10;
       }
     }
 
-    function walkStep(W, H, cr) {
+    function walkStep() {
+      const { w: W, h: H } = getContainerSize();
       const P = 28;
-      steer(cr);
-      // convert fraction → pixels, move, clamp, convert back
-      let cx = s.fx * W + s.vx;
-      let cy = s.fy * H + s.vy;
-      if (cx < P) { cx = P; s.vx = Math.abs(s.vx) + 0.05; }
-      if (cx > W - P) { cx = W - P; s.vx = -(Math.abs(s.vx) + 0.05); }
-      if (cy < P) { cy = P; s.vy = Math.abs(s.vy) + 0.05; }
-      if (cy > H - P) { cy = H - P; s.vy = -(Math.abs(s.vy) + 0.05); }
+      steer();
+      s.cx += s.vx; s.cy += s.vy;
+      if (s.cx < P) { s.cx = P; s.vx = Math.abs(s.vx) + 0.05; }
+      if (s.cx > W - P) { s.cx = W - P; s.vx = -(Math.abs(s.vx) + 0.05); }
+      if (s.cy < P + 60) { s.cy = P + 60; s.vy = Math.abs(s.vy) + 0.05; }
+      if (s.cy > H - P) { s.cy = H - P; s.vy = -(Math.abs(s.vy) + 0.05); }
       const sp = Math.hypot(s.vx, s.vy);
       if (sp > 1.0) { s.vx = s.vx / sp * 1.0; s.vy = s.vy / sp * 1.0; }
       if (sp < 0.5) { s.vx = s.vx / sp * 0.5; s.vy = s.vy / sp * 0.5; }
       if (Math.random() < 0.004) { s.vx += (Math.random() - 0.5) * 0.25; s.vy += (Math.random() - 0.5) * 0.25; }
       if (s.vx > 0.08) s.dir = 1;
       if (s.vx < -0.08) s.dir = -1;
-      // store back as fractions
-      s.fx = cx / W;
-      s.fy = cy / H;
     }
 
     function loop() {
       const currentPhase = phaseRef.current;
       const e = emotionRef.current;
-      // Get fresh container rect every frame — handles scroll + resize correctly
-      const cr = getContainerRect();
-      const W = cr.width || window.innerWidth;
-      const H = cr.height || window.innerHeight;
+
+      // FIX 4: Check outfit change using real clock time
+      const now = Date.now();
+      if (now - s.outfitChangedAt >= OUTFIT_INTERVAL_MS) {
+        s.outfitChangedAt = now;
+        s.outfitIdx = (s.outfitIdx + 1) % OUTFITS.length;
+        showToast("👕 Outfit changed: " + OUTFITS[s.outfitIdx].name);
+      }
 
       if (currentPhase === "result") {
-        if (s.frozenFx === null) { s.frozenFx = s.fx; s.frozenFy = s.fy; }
-        s.fx = s.frozenFx; s.fy = s.frozenFy;
-        s.frame++; s.blink++;
+        if (s.frozenX === null) { s.frozenX = s.cx; s.frozenY = s.cy; }
+        s.cx = s.frozenX; s.cy = s.frozenY;
+        s.frame++;
+        s.blink++;
         if (s.blink > 110) { s.blinking = true; if (s.blink > 122) { s.blinking = false; s.blink = 0; } }
         s.emTimer++;
         if (e === "dancing") { s.dancePhase++; s.jumpY = Math.abs(Math.sin(s.emTimer * 0.22)) * 18; }
-        else { s.jumpY = 0; }
-        // Position canvas using viewport coords (cr.left/top + fractional offset)
-        cv.style.left = (cr.left + s.fx * W - 55) + "px";
-        cv.style.top = (cr.top + s.fy * H - 90) + "px";
+        else { s.jumpY = 0; s.shakeX = 0; }
+        cv.style.left = (s.cx - 55) + "px";
+        cv.style.top = (s.cy - 90) + "px";
         drawCharacter(ctx, e, s.frame, s.blinking, s.dir, s.jumpY, s.dancePhase, OUTFITS[s.outfitIdx]);
         rafRef.current = requestAnimationFrame(loop);
         return;
       }
 
-      s.frozenFx = null; s.frozenFy = null;
-      s.frame++; s.blink++;
+      s.frozenX = null; s.frozenY = null;
+      s.frame++;
+      s.blink++;
       if (s.blink > 110) { s.blinking = true; if (s.blink > 122) { s.blinking = false; s.blink = 0; } }
       s.emTimer++;
 
@@ -434,19 +493,12 @@ function CharacterCanvas({ phase, answered, emotion, containerRef }) {
       else if (e === "dancing") { s.dancePhase++; s.jumpY = Math.abs(Math.sin(s.emTimer * 0.22)) * 18; }
       else { s.jumpY = 0; s.shakeX = 0; }
 
-      s.outfitTimer++;
-      if (s.outfitTimer >= OUTFIT_INTERVAL) {
-        s.outfitTimer = 0;
-        s.outfitIdx = (s.outfitIdx + 1) % OUTFITS.length;
-        showToast("👕 Outfit changed: " + OUTFITS[s.outfitIdx].name);
-      }
-
       const shouldWalk = currentPhase !== "playing" || !answeredRef.current;
-      if (shouldWalk) walkStep(W, H, cr);
+      if (shouldWalk) walkStep();
 
-      // Always position relative to viewport using cr.left/top — scroll-proof
-      cv.style.left = (cr.left + s.fx * W - 55) + "px";
-      cv.style.top = (cr.top + s.fy * H - 90) + "px";
+      // FIX 4: position relative to container (position:absolute), not viewport
+      cv.style.left = (s.cx - 55) + "px";
+      cv.style.top = (s.cy - 90) + "px";
       drawCharacter(ctx, e, s.frame, s.blinking, s.dir, s.jumpY, s.dancePhase, OUTFITS[s.outfitIdx]);
       rafRef.current = requestAnimationFrame(loop);
     }
@@ -457,8 +509,9 @@ function CharacterCanvas({ phase, answered, emotion, containerRef }) {
 
   return (
     <>
+      {/* FIX 4: position:absolute so it moves with the container, not fixed to viewport */}
       <canvas ref={canvasRef} width={110} height={180}
-        style={{ position: "fixed", pointerEvents: "none", zIndex: 9999 }} />
+        style={{ position: "absolute", pointerEvents: "none", zIndex: 9999 }} />
       <div style={{
         position: "fixed", bottom: 20, left: "50%", transform: "translateX(-50%)",
         background: "rgba(0,0,0,.75)", border: "1px solid rgba(255,255,255,.15)",
@@ -471,18 +524,23 @@ function CharacterCanvas({ phase, answered, emotion, containerRef }) {
   );
 }
 
-// ─── FIX: Mute + Secure badge — only shown during "playing" phase ─────────────
+// ─── Mute button ─────────────────────────────────────────────────────────────
+// FIX 3: Mute button positioned inside the quiz section, not fixed to viewport
+
 function MuteButton({ muted, onToggle }) {
   return (
     <button onClick={onToggle} title={muted ? "Unmute" : "Mute"} style={{
-      position: "fixed", top: 12, left: 12, zIndex: 10000,
+      position: "absolute", top: 12, left: 12, zIndex: 100,
       background: "rgba(0,0,0,.6)", border: "1px solid rgba(255,255,255,.15)",
       borderRadius: "50%", width: 38, height: 38, cursor: "pointer",
       display: "flex", alignItems: "center", justifyContent: "center",
       fontSize: 16, color: muted ? "#6b7280" : "#a78bfa",
+      transition: "color .2s, border-color .2s",
     }}>{muted ? "🔇" : "🔊"}</button>
   );
 }
+
+// ─── Shared UI helpers ────────────────────────────────────────────────────────
 
 const Orbs = () => (
   <>
@@ -491,88 +549,72 @@ const Orbs = () => (
   </>
 );
 
-const screen = { minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px 16px", position: "relative", overflow: "hidden" };
 const card = { background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 20, padding: "28px 24px" };
 const statCard = { background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 18, padding: "20px 24px", minWidth: 100, textAlign: "center", flex: 1, maxWidth: 180 };
 
-function IntroScreen({ onGoMode }) {
+// ─── Inner screens (no longer set minHeight themselves, parent handles it) ────
+
+function IntroScreen({ onGoMode, theme }) {
+  // FIX 2: Accept theme prop and apply theme colors
+  const accentColor = theme?.primary || "#a78bfa";
+  const gradient = theme?.gradient || "linear-gradient(135deg,#a78bfa,#f472b6)";
   const items = [["📝", "10", "Questions"], ["🎮", "4", "Difficulties"], ["🔥", "+15", "Streak bonus"], ["👕", "Auto", "Outfit swaps"]];
   return (
-    <section style={screen}>
-      <Orbs />
-      <div style={{ maxWidth: 680, width: "100%", textAlign: "center", position: "relative", zIndex: 1 }}>
-        <p style={{ color: "#a78bfa", fontSize: 12, fontWeight: 700, letterSpacing: 4, textTransform: "uppercase", marginBottom: 10 }}>Challenge Yourself</p>
-        <h1 style={{ fontSize: "clamp(36px,6vw,64px)", fontWeight: 900, lineHeight: 1.05, marginBottom: 12, background: "linear-gradient(135deg,#a78bfa,#f472b6)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>Dev Quiz</h1>
-        <div style={{ width: 56, height: 4, background: "linear-gradient(135deg,#8b5cf6,#ec4899)", borderRadius: 2, margin: "0 auto 18px" }} />
-        <p style={{ color: "#9ca3af", fontSize: 15, lineHeight: 1.8, marginBottom: 40 }}>
-          Test your knowledge across core software domains.<br />
-          <strong style={{ color: "#e2e8f0" }}>10 questions · 4 difficulty modes · streak bonuses!</strong>
-        </p>
-        <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap", marginBottom: 44 }}>
-          {items.map(([icon, val, label]) => (
-            <div key={label} style={statCard}>
-              <div style={{ fontSize: 26, marginBottom: 6 }}>{icon}</div>
-              <div style={{ fontSize: 28, fontWeight: 900, color: "#e2e8f0" }}>{val}</div>
-              <div style={{ color: "#6b7280", fontSize: 12, marginTop: 3 }}>{label}</div>
-            </div>
-          ))}
-        </div>
-        <button onClick={onGoMode} style={{ cursor: "pointer", border: "none", fontFamily: "inherit", background: "linear-gradient(135deg,#8b5cf6,#ec4899)", color: "#fff", borderRadius: 50, padding: "16px 48px", fontSize: 17, fontWeight: 800 }}>
-          Choose Difficulty 🎮
-        </button>
+    <div style={{ textAlign: "center", position: "relative", zIndex: 1, width: "100%" }}>
+      <p style={{ color: accentColor, fontSize: 12, fontWeight: 700, letterSpacing: 4, textTransform: "uppercase", marginBottom: 10 }}>Challenge Yourself</p>
+      <h1 style={{ fontSize: "clamp(36px,6vw,64px)", fontWeight: 900, lineHeight: 1.05, marginBottom: 12, background: gradient, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>Dev Quiz</h1>
+      <div style={{ width: 56, height: 4, background: gradient, borderRadius: 2, margin: "0 auto 18px" }} />
+      <p style={{ color: theme?.textMuted || "#9ca3af", fontSize: 15, lineHeight: 1.8, marginBottom: 40 }}>
+        Test your knowledge across core software domains.<br />
+        <strong style={{ color: theme?.text || "#e2e8f0" }}>10 questions · 4 difficulty modes · streak bonuses!</strong>
+      </p>
+      <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap", marginBottom: 44 }}>
+        {items.map(([icon, val, label]) => (
+          <div key={label} style={{ ...statCard, background: theme?.bgCard ? theme.bgCard + "99" : "rgba(255,255,255,.06)" }}>
+            <div style={{ fontSize: 26, marginBottom: 6 }}>{icon}</div>
+            <div style={{ fontSize: 28, fontWeight: 900, color: theme?.text || "#e2e8f0" }}>{val}</div>
+            <div style={{ color: theme?.textMuted || "#6b7280", fontSize: 12, marginTop: 3 }}>{label}</div>
+          </div>
+        ))}
       </div>
-    </section>
+      <button onClick={onGoMode} style={{ cursor: "pointer", border: "none", fontFamily: "inherit", background: gradient, color: "#fff", borderRadius: 50, padding: "16px 48px", fontSize: 17, fontWeight: 800 }}>
+        Choose Difficulty 🎮
+      </button>
+    </div>
   );
 }
 
-// ─── FIX: Mode screen — selected card color now works correctly ───────────────
-function ModeScreen({ selectedMode, onSelectMode, onBack, onStart }) {
+function ModeScreen({ selectedMode, onSelectMode, onBack, onStart, theme }) {
+  // FIX 2: Apply theme colors
+  const gradient = theme?.gradient || "linear-gradient(135deg,#8b5cf6,#ec4899)";
   return (
-    <section style={screen}>
-      <Orbs />
-      <div style={{ maxWidth: 540, width: "100%", textAlign: "center", position: "relative", zIndex: 1 }}>
-        <h2 style={{ fontSize: "clamp(22px,4vw,38px)", fontWeight: 900, marginBottom: 6 }}>Pick Your Mode</h2>
-        <p style={{ color: "#6b7280", marginBottom: 32 }}>Harder modes = faster timer + bigger challenge</p>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, width: "100%", maxWidth: 500, margin: "0 auto 32px" }}>
-          {MODES.map(m => {
-            const isSelected = selectedMode === m.id;
-            return (
-              <button
-                key={m.id}
-                onClick={() => onSelectMode(m.id)}
-                style={{
-                  background: isSelected ? `${m.color}22` : "rgba(255,255,255,.04)",
-                  border: `2px solid ${isSelected ? m.color : "rgba(255,255,255,.1)"}`,
-                  boxShadow: isSelected ? `0 0 28px ${m.color}40` : "none",
-                  borderRadius: 16,
-                  padding: "18px 14px",
-                  color: "#fffffe",
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  textAlign: "center",
-                  transition: "all 0.2s ease",
-                  outline: "none",
-                }}
-              >
-                <div style={{ fontSize: 34, marginBottom: 8 }}>{m.emoji}</div>
-                <div style={{ fontSize: 16, fontWeight: 800, color: isSelected ? m.color : "#e2e8f0", marginBottom: 4, transition: "color 0.2s" }}>{m.label}</div>
-                <div style={{ fontSize: 12, color: isSelected ? m.color : "#6b7280", transition: "color 0.2s" }}>{m.desc}</div>
-              </button>
-            );
-          })}
-        </div>
-        <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
-          <button onClick={onBack} style={{ cursor: "pointer", border: "1px solid rgba(255,255,255,0.15)", fontFamily: "inherit", background: "rgba(255,255,255,0.07)", borderRadius: 50, padding: "13px 28px", color: "#fffffe", fontSize: 14, fontWeight: 600 }}>← Back</button>
-          <button onClick={onStart} style={{ cursor: "pointer", border: "none", fontFamily: "inherit", background: "linear-gradient(135deg,#8b5cf6,#ec4899)", color: "#fff", borderRadius: 50, padding: "13px 40px", fontSize: 16, fontWeight: 800 }}>Start Quiz 🚀</button>
-        </div>
+    <div style={{ maxWidth: 540, width: "100%", textAlign: "center", position: "relative", zIndex: 1 }}>
+      <h2 style={{ fontSize: "clamp(22px,4vw,38px)", fontWeight: 900, marginBottom: 6, color: theme?.text || "#fffffe" }}>Pick Your Mode</h2>
+      <p style={{ color: theme?.textMuted || "#6b7280", marginBottom: 32 }}>Harder modes = faster timer + bigger challenge</p>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, width: "100%", maxWidth: 500, margin: "0 auto 32px" }}>
+        {MODES.map(m => (
+          <button key={m.id} onClick={() => onSelectMode(m.id)} style={{
+            background: selectedMode === m.id ? `${m.color}20` : (theme?.bgCard ? theme.bgCard + "66" : "rgba(255,255,255,.04)"),
+            border: `2px solid ${selectedMode === m.id ? m.color : (theme?.border || "rgba(255,255,255,.1)")}`,
+            boxShadow: selectedMode === m.id ? `0 0 24px ${m.color}28` : "none",
+            borderRadius: 16, padding: "18px 14px", color: theme?.text || "#fffffe",
+            cursor: "pointer", fontFamily: "inherit", fontSize: 13, fontWeight: 600, textAlign: "center",
+          }}>
+            <div style={{ fontSize: 34, marginBottom: 8 }}>{m.emoji}</div>
+            <div style={{ fontSize: 16, fontWeight: 800, color: m.color, marginBottom: 4 }}>{m.label}</div>
+            <div style={{ fontSize: 12, color: theme?.textMuted || "#6b7280" }}>{m.desc}</div>
+          </button>
+        ))}
       </div>
-    </section>
+      <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+        <button onClick={onBack} style={{ cursor: "pointer", border: `1px solid ${theme?.border || "rgba(255,255,255,0.15)"}`, fontFamily: "inherit", background: theme?.bgCard ? theme.bgCard + "aa" : "rgba(255,255,255,0.07)", borderRadius: 50, padding: "13px 28px", color: theme?.text || "#fffffe", fontSize: 14, fontWeight: 600 }}>← Back</button>
+        <button onClick={onStart} style={{ cursor: "pointer", border: "none", fontFamily: "inherit", background: gradient, color: "#fff", borderRadius: 50, padding: "13px 40px", fontSize: 16, fontWeight: 800 }}>Start Quiz 🚀</button>
+      </div>
+    </div>
   );
 }
 
-function PlayingScreen({ qs, cur, answered, sel, fill, onFillChange, score, streak, mode, timeLeft, results, onMCQ, onTF, onFill, getCorrectAnswer }) {
+function PlayingScreen({ qs, cur, answered, sel, fill, onFillChange, score, streak, mode, timeLeft, results, onMCQ, onTF, onFill, getCorrectAnswer, theme }) {
   const q = qs[cur];
   if (!q) return null;
   const M = MODES.find(x => x.id === mode) || MODES[1];
@@ -580,156 +622,166 @@ function PlayingScreen({ qs, cur, answered, sel, fill, onFillChange, score, stre
   const timerClr = timeLeft <= 5 ? "#ff4040" : M.color;
   const pct = timeLeft / M.time;
   const circ = 2 * Math.PI * 24;
+  // FIX 2: use theme colors
+  const textColor = theme?.text || "#f1f5f9";
+  const mutedColor = theme?.textMuted || "#6b7280";
+  const borderColor = theme?.border || "rgba(255,255,255,0.1)";
+  const cardBg = theme?.bgCard ? theme.bgCard + "99" : "rgba(255,255,255,0.05)";
 
   return (
-    <section style={{ ...screen, padding: "20px 14px" }}>
-      <Orbs />
-      <div style={{ maxWidth: 620, width: "100%", position: "relative", zIndex: 1 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{ position: "relative", width: 60, height: 60, flexShrink: 0 }}>
-              <svg width="60" height="60" style={{ transform: "rotate(-90deg)", position: "absolute", inset: 0 }}>
-                <circle cx="30" cy="30" r="24" fill="none" stroke="rgba(255,255,255,.07)" strokeWidth="5" />
-                <circle cx="30" cy="30" r="24" fill="none" stroke={timerClr} strokeWidth="5" strokeLinecap="round"
-                  strokeDasharray={circ} strokeDashoffset={circ * (1 - pct)}
-                  style={{ transition: "stroke-dashoffset .3s linear, stroke .3s" }} />
-              </svg>
-              <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column" }}>
-                <span style={{ fontSize: 15, fontWeight: 900, color: timerClr, lineHeight: 1 }}>{timeLeft}</span>
-                <span style={{ fontSize: 9, color: timerClr, lineHeight: 1.2 }}>sec</span>
-              </div>
-            </div>
-            <div>
-              <div style={{ fontSize: 11, color: "#6b7280", textTransform: "uppercase", letterSpacing: 1, fontWeight: 700 }}>Q {cur + 1} / {TOTAL}</div>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 3 }}>
-                <span style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0" }}>Score: <strong style={{ color: M.color }}>{score}</strong></span>
-                {streak >= 3 && <span style={{ background: "rgba(249,115,22,.18)", color: "#fb923c", padding: "2px 8px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>⚡ {streak}×</span>}
-              </div>
+    <div style={{ maxWidth: 620, width: "100%", position: "relative", zIndex: 1 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ position: "relative", width: 60, height: 60, flexShrink: 0 }}>
+            <svg width="60" height="60" style={{ transform: "rotate(-90deg)", position: "absolute", inset: 0 }}>
+              <circle cx="30" cy="30" r="24" fill="none" stroke="rgba(255,255,255,.07)" strokeWidth="5" />
+              <circle cx="30" cy="30" r="24" fill="none" stroke={timerClr} strokeWidth="5" strokeLinecap="round"
+                strokeDasharray={circ} strokeDashoffset={circ * (1 - pct)}
+                style={{ transition: "stroke-dashoffset .3s linear, stroke .3s" }} />
+            </svg>
+            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column" }}>
+              <span style={{ fontSize: 15, fontWeight: 900, color: timerClr, lineHeight: 1 }}>{timeLeft}</span>
+              <span style={{ fontSize: 9, color: timerClr, lineHeight: 1.2 }}>sec</span>
             </div>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 5 }}>
-            <span style={{ padding: "4px 12px", borderRadius: 20, fontSize: 12, fontWeight: 700, background: `${catClr}1a`, color: catClr, border: `1px solid ${catClr}40` }}>{q.c}</span>
-            <span style={{ padding: "4px 12px", borderRadius: 20, fontSize: 12, fontWeight: 700, background: `${M.color}1a`, color: M.color }}>{M.emoji} {M.label}</span>
+          <div>
+            <div style={{ fontSize: 11, color: mutedColor, textTransform: "uppercase", letterSpacing: 1, fontWeight: 700 }}>Q {cur + 1} / {TOTAL}</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 3 }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: textColor }}>Score: <strong style={{ color: M.color }}>{score}</strong></span>
+              {streak >= 3 && <span style={{ background: "rgba(249,115,22,.18)", color: "#fb923c", padding: "2px 8px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>⚡ {streak}×</span>}
+            </div>
           </div>
         </div>
-
-        <div style={{ width: "100%", height: 5, background: "rgba(255,255,255,.08)", borderRadius: 10, overflow: "hidden", marginBottom: 24 }}>
-          <div style={{ height: "100%", background: "linear-gradient(90deg,#8b5cf6,#ec4899)", borderRadius: 10, width: `${((cur + 1) / TOTAL) * 100}%`, transition: "width .5s ease" }} />
-        </div>
-
-        <div id="qcard" style={card}>
-          <h3 style={{ fontSize: "clamp(16px,2.5vw,20px)", fontWeight: 700, lineHeight: 1.55, marginBottom: 24, whiteSpace: "pre-line", color: "#f1f5f9" }}>{q.q}</h3>
-
-          {q.t === "mcq" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {q.o.map((opt, i) => {
-                const correct = answered && i === getCorrectAnswer(cur);
-                const wrong = answered && sel === i && !correct;
-                return (
-                  <button key={i} disabled={answered} onClick={() => onMCQ(i)} style={{
-                    width: "100%", background: correct ? "rgba(67,233,123,.14)" : wrong ? "rgba(255,101,132,.14)" : "rgba(255,255,255,0.04)",
-                    border: `2px solid ${correct ? "#43e97b" : wrong ? "#ff6584" : "rgba(255,255,255,0.1)"}`,
-                    borderRadius: 14, padding: "14px 16px", color: correct ? "#43e97b" : wrong ? "#ff6584" : "#fffffe",
-                    cursor: "pointer", textAlign: "left", fontSize: 14, fontWeight: 500,
-                    display: "flex", alignItems: "center", gap: 12, fontFamily: "inherit",
-                  }}>
-                    <span style={{ width: 28, height: 28, borderRadius: "50%", background: correct ? "#43e97b" : wrong ? "#ff6584" : "rgba(255,255,255,.09)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800, flexShrink: 0, color: (correct || wrong) ? "#fff" : undefined }}>
-                      {correct ? "✓" : wrong ? "✗" : String.fromCharCode(65 + i)}
-                    </span>
-                    {opt}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-
-          {q.t === "truefalse" && (
-            <div style={{ display: "flex", gap: 12 }}>
-              {[true, false].map(v => {
-                const correct = answered && v === getCorrectAnswer(cur);
-                const wrong = answered && sel === v && !correct;
-                return (
-                  <button key={String(v)} disabled={answered} onClick={() => onTF(v)} style={{
-                    flex: 1, padding: 18, borderRadius: 14, fontSize: 15, fontWeight: 700, cursor: "pointer",
-                    background: correct ? "rgba(67,233,123,.14)" : wrong ? "rgba(255,101,132,.14)" : "rgba(255,255,255,.04)",
-                    border: `2px solid ${correct ? "#43e97b" : wrong ? "#ff6584" : "rgba(255,255,255,.1)"}`,
-                    color: correct ? "#43e97b" : wrong ? "#ff6584" : "#fffffe", fontFamily: "inherit",
-                  }}>{v ? "True" : "False"}</button>
-                );
-              })}
-            </div>
-          )}
-
-          {q.t === "fill" && (() => {
-            const lastR = results[results.length - 1];
-            return (
-              <>
-                <div style={{ display: "flex", gap: 10 }}>
-                  <input type="text" disabled={answered} value={fill}
-                    onChange={e => onFillChange(e.target.value)}
-                    onKeyDown={e => { if (e.key === "Enter") onFill(); }}
-                    placeholder={`Your answer… hint: ${q.h}`}
-                    style={{ flex: 1, padding: "14px 16px", borderRadius: 14, background: "rgba(255,255,255,.06)", border: "2px solid rgba(255,255,255,.1)", color: "#fffffe", fontSize: 14, fontFamily: "inherit", outline: "none", height: 50 }}
-                  />
-                  {!answered && (
-                    <button onClick={onFill} style={{ background: "linear-gradient(135deg,#8b5cf6,#ec4899)", color: "#fff", border: "none", borderRadius: 14, padding: "0 22px", fontWeight: 700, cursor: "pointer", fontSize: 14, fontFamily: "inherit", height: 50 }}>Submit</button>
-                  )}
-                </div>
-                {answered && lastR && (
-                  <div style={{ marginTop: 10, padding: "11px 14px", borderRadius: 12, fontSize: 13, background: lastR.ok ? "rgba(67,233,123,.1)" : "rgba(255,101,132,.1)", border: `1px solid ${lastR.ok ? "#43e97b" : "#ff6584"}`, color: lastR.ok ? "#43e97b" : "#ff6584" }}>
-                    {lastR.ok ? "✓ Correct!" : <>✗ Correct answer: <strong>{q.a}</strong></>}
-                  </div>
-                )}
-              </>
-            );
-          })()}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 5 }}>
+          <span style={{ padding: "4px 12px", borderRadius: 20, fontSize: 12, fontWeight: 700, background: `${catClr}1a`, color: catClr, border: `1px solid ${catClr}40` }}>{q.c}</span>
+          <span style={{ padding: "4px 12px", borderRadius: 20, fontSize: 12, fontWeight: 700, background: `${M.color}1a`, color: M.color }}>{M.emoji} {M.label}</span>
         </div>
       </div>
-    </section>
+
+      <div style={{ width: "100%", height: 5, background: "rgba(255,255,255,.08)", borderRadius: 10, overflow: "hidden", marginBottom: 24 }}>
+        <div style={{ height: "100%", background: theme?.gradient || "linear-gradient(90deg,#8b5cf6,#ec4899)", borderRadius: 10, width: `${((cur + 1) / TOTAL) * 100}%`, transition: "width .5s ease" }} />
+      </div>
+
+      <div id="qcard" style={{ ...card, background: cardBg, border: `1px solid ${borderColor}` }}>
+        <h3 style={{ fontSize: "clamp(16px,2.5vw,20px)", fontWeight: 700, lineHeight: 1.55, marginBottom: 24, whiteSpace: "pre-line", color: textColor }}>{q.q}</h3>
+
+        {q.t === "mcq" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {q.o.map((opt, i) => {
+              const correct = answered && i === getCorrectAnswer(cur);
+              const wrong = answered && sel === i && !correct;
+              return (
+                <button key={i} disabled={answered} onClick={() => onMCQ(i)} style={{
+                  width: "100%", background: correct ? "rgba(67,233,123,.14)" : wrong ? "rgba(255,101,132,.14)" : (theme?.bgCard ? theme.bgCard + "66" : "rgba(255,255,255,0.04)"),
+                  border: `2px solid ${correct ? "#43e97b" : wrong ? "#ff6584" : borderColor}`,
+                  borderRadius: 14, padding: "14px 16px", color: correct ? "#43e97b" : wrong ? "#ff6584" : textColor,
+                  cursor: "pointer", textAlign: "left", fontSize: 14, fontWeight: 500,
+                  display: "flex", alignItems: "center", gap: 12, fontFamily: "inherit",
+                }}>
+                  <span style={{ width: 28, height: 28, borderRadius: "50%", background: correct ? "#43e97b" : wrong ? "#ff6584" : "rgba(255,255,255,.09)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800, flexShrink: 0, color: (correct || wrong) ? "#fff" : undefined }}>
+                    {correct ? "✓" : wrong ? "✗" : String.fromCharCode(65 + i)}
+                  </span>
+                  {opt}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {q.t === "truefalse" && (
+          <div style={{ display: "flex", gap: 12 }}>
+            {[true, false].map(v => {
+              const correct = answered && v === getCorrectAnswer(cur);
+              const wrong = answered && sel === v && !correct;
+              return (
+                <button key={String(v)} disabled={answered} onClick={() => onTF(v)} style={{
+                  flex: 1, padding: 18, borderRadius: 14, fontSize: 15, fontWeight: 700, cursor: "pointer",
+                  background: correct ? "rgba(67,233,123,.14)" : wrong ? "rgba(255,101,132,.14)" : (theme?.bgCard ? theme.bgCard + "66" : "rgba(255,255,255,.04)"),
+                  border: `2px solid ${correct ? "#43e97b" : wrong ? "#ff6584" : borderColor}`,
+                  color: correct ? "#43e97b" : wrong ? "#ff6584" : textColor, fontFamily: "inherit",
+                }}>{v ? "True" : "False"}</button>
+              );
+            })}
+          </div>
+        )}
+
+        {q.t === "fill" && (() => {
+          const lastR = results[results.length - 1];
+          return (
+            <>
+              <div style={{ display: "flex", gap: 10 }}>
+                <input
+                  type="text" disabled={answered} value={fill}
+                  onChange={e => onFillChange(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter") onFill(); }}
+                  placeholder={`Your answer… hint: ${q.h}`}
+                  style={{ flex: 1, padding: "14px 16px", borderRadius: 14, background: theme?.bgCard ? theme.bgCard + "66" : "rgba(255,255,255,.06)", border: `2px solid ${borderColor}`, color: textColor, fontSize: 14, fontFamily: "inherit", outline: "none", height: 50 }}
+                />
+                {!answered && (
+                  <button onClick={onFill} style={{ background: theme?.gradient || "linear-gradient(135deg,#8b5cf6,#ec4899)", color: "#fff", border: "none", borderRadius: 14, padding: "0 22px", fontWeight: 700, cursor: "pointer", fontSize: 14, fontFamily: "inherit", height: 50 }}>Submit</button>
+                )}
+              </div>
+              {answered && lastR && (
+                <div style={{ marginTop: 10, padding: "11px 14px", borderRadius: 12, fontSize: 13, background: lastR.ok ? "rgba(67,233,123,.1)" : "rgba(255,101,132,.1)", border: `1px solid ${lastR.ok ? "#43e97b" : "#ff6584"}`, color: lastR.ok ? "#43e97b" : "#ff6584" }}>
+                  {lastR.ok ? "✓ Correct!" : <>✗ Correct answer: <strong>{q.a}</strong></>}
+                </div>
+              )}
+            </>
+          );
+        })()}
+      </div>
+    </div>
   );
 }
 
-function ResultScreen({ results, score, mode, onChangeMode, onPlayAgain }) {
+function ResultScreen({ results, score, mode, onChangeMode, onPlayAgain, theme }) {
   const ok = results.filter(r => r.ok).length;
   const pct = Math.round((score / (TOTAL * 10)) * 100);
   const M = MODES.find(x => x.id === mode) || MODES[1];
+  const gradient = theme?.gradient || "linear-gradient(135deg,#8b5cf6,#ec4899)";
+  const textColor = theme?.text || "#fffffe";
+  const mutedColor = theme?.textMuted || "#6b7280";
+  const borderColor = theme?.border || "rgba(255,255,255,.08)";
   return (
-    <section style={{ ...screen, padding: "24px 14px 60px" }}>
-      <Orbs />
-      <div style={{ maxWidth: 680, width: "100%", textAlign: "center", position: "relative", zIndex: 1 }}>
-        <h2 style={{ fontSize: "clamp(24px,4vw,46px)", fontWeight: 900, marginBottom: 8 }}>{pct >= 50 ? "Nailed it! 🎉" : "Game Over 😢"}</h2>
-        <p style={{ color: "#6b7280", fontSize: 15, marginBottom: 28 }}>
-          <span style={{ background: `${M.color}1a`, color: M.color, padding: "2px 10px", borderRadius: 20, fontSize: 13, fontWeight: 700 }}>{M.emoji} {M.label}</span>
-          &nbsp;·&nbsp;{ok}/{TOTAL} correct&nbsp;·&nbsp;<strong style={{ color: "#a78bfa" }}>{score} pts</strong>
-        </p>
-        <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap", marginBottom: 28 }}>
-          {[["Correct", ok, "#43e97b"], ["Score", score, "#a78bfa"], ["Accuracy", pct + "%", M.color]].map(([l, v, c]) => (
-            <div key={l} style={statCard}><div style={{ fontSize: 24, fontWeight: 900, color: c }}>{v}</div><div style={{ fontSize: 11, color: "#6b7280", marginTop: 3 }}>{l}</div></div>
-          ))}
-        </div>
-        <div style={{ marginBottom: 28, maxHeight: 280, overflowY: "auto", borderRadius: 16, border: "1px solid rgba(255,255,255,.08)" }}>
-          {results.map((r, i) => (
-            <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px", background: r.ok ? "rgba(67,233,123,.06)" : "rgba(255,101,132,.06)", borderBottom: "1px solid rgba(255,255,255,.05)" }}>
-              <span style={{ fontSize: 15, flexShrink: 0 }}>{r.ok ? "✅" : "❌"}</span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, color: "#cbd5e1", lineHeight: 1.4 }}>{r.q.q.replace(/\n.*/, "").slice(0, 70)}{r.q.q.length > 70 ? "…" : ""}</div>
-                {!r.ok && <div style={{ fontSize: 11, color: "#6b7280", marginTop: 2 }}>Answer: <span style={{ color: "#43e97b" }}>{String(r.q.a)}</span></div>}
-              </div>
-              <span style={{ fontSize: 12, fontWeight: 700, color: r.ok ? "#43e97b" : "#6b7280", flexShrink: 0 }}>{r.ok ? "+10" : "0"}</span>
-            </div>
-          ))}
-        </div>
-        <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
-          <button onClick={onChangeMode} style={{ cursor: "pointer", border: "1px solid rgba(255,255,255,0.15)", fontFamily: "inherit", background: "rgba(255,255,255,0.07)", borderRadius: 50, padding: "13px 28px", color: "#fffffe", fontSize: 14, fontWeight: 600 }}>Change Mode</button>
-          <button onClick={onPlayAgain} style={{ cursor: "pointer", border: "none", fontFamily: "inherit", background: "linear-gradient(135deg,#8b5cf6,#ec4899)", color: "#fff", borderRadius: 50, padding: "14px 40px", fontSize: 16, fontWeight: 800 }}>Play Again 🔄</button>
-        </div>
+    <div style={{ maxWidth: 680, width: "100%", textAlign: "center", position: "relative", zIndex: 1 }}>
+      <h2 style={{ fontSize: "clamp(24px,4vw,46px)", fontWeight: 900, marginBottom: 8, color: textColor }}>{pct >= 50 ? "Nailed it! 🎉" : "Game Over 😢"}</h2>
+      <p style={{ color: mutedColor, fontSize: 15, marginBottom: 28 }}>
+        <span style={{ background: `${M.color}1a`, color: M.color, padding: "2px 10px", borderRadius: 20, fontSize: 13, fontWeight: 700 }}>{M.emoji} {M.label}</span>
+        &nbsp;·&nbsp;{ok}/{TOTAL} correct&nbsp;·&nbsp;<strong style={{ color: theme?.primary || "#a78bfa" }}>{score} pts</strong>
+      </p>
+      <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap", marginBottom: 28 }}>
+        {[["Correct", ok, "#43e97b"], ["Score", score, "#a78bfa"], ["Accuracy", pct + "%", M.color]].map(([l, v, c]) => (
+          <div key={l} style={{ ...statCard, background: theme?.bgCard ? theme.bgCard + "99" : "rgba(255,255,255,.06)", border: `1px solid ${borderColor}` }}>
+            <div style={{ fontSize: 24, fontWeight: 900, color: c }}>{v}</div>
+            <div style={{ fontSize: 11, color: mutedColor, marginTop: 3 }}>{l}</div>
+          </div>
+        ))}
       </div>
-    </section>
+      <div style={{ marginBottom: 28, maxHeight: 280, overflowY: "auto", borderRadius: 16, border: `1px solid ${borderColor}` }}>
+        {results.map((r, i) => (
+          <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px", background: r.ok ? "rgba(67,233,123,.06)" : "rgba(255,101,132,.06)", borderBottom: `1px solid ${borderColor}` }}>
+            <span style={{ fontSize: 15, flexShrink: 0 }}>{r.ok ? "✅" : "❌"}</span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13, color: theme?.textSecondary || "#cbd5e1", lineHeight: 1.4 }}>{r.q.q.replace(/\n.*/, "").slice(0, 70)}{r.q.q.length > 70 ? "…" : ""}</div>
+              {!r.ok && <div style={{ fontSize: 11, color: mutedColor, marginTop: 2 }}>Answer: <span style={{ color: "#43e97b" }}>{String(r.q.a)}</span></div>}
+            </div>
+            <span style={{ fontSize: 12, fontWeight: 700, color: r.ok ? "#43e97b" : mutedColor, flexShrink: 0 }}>{r.ok ? "+10" : "0"}</span>
+          </div>
+        ))}
+      </div>
+      <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+        <button onClick={onChangeMode} style={{ cursor: "pointer", border: `1px solid ${borderColor}`, fontFamily: "inherit", background: theme?.bgCard ? theme.bgCard + "aa" : "rgba(255,255,255,0.07)", borderRadius: 50, padding: "13px 28px", color: textColor, fontSize: 14, fontWeight: 600 }}>Change Mode</button>
+        <button onClick={onPlayAgain} style={{ cursor: "pointer", border: "none", fontFamily: "inherit", background: gradient, color: "#fff", borderRadius: 50, padding: "14px 40px", fontSize: 16, fontWeight: 800 }}>Play Again 🔄</button>
+      </div>
+    </div>
   );
 }
 
 // ─── Main App ─────────────────────────────────────────────────────────────────
+
 export default function DevQuiz() {
+  // Read theme live from context — updates instantly when user switches theme
+  const { theme } = useTheme();
   const [phase, setPhase] = useState("intro");
   const [mode, setMode] = useState("medium");
   const [qs, setQs] = useState([]);
@@ -743,7 +795,8 @@ export default function DevQuiz() {
   const [streak, setStreak] = useState(0);
   const [emotion, setEmotion] = useState("idle");
   const [muted, setMuted] = useState(false);
-  // containerRef passed to character so it reads getBoundingClientRect each frame
+
+  // FIX 3 & 4: containerRef for the quiz section div (position:relative)
   const containerRef = useRef(null);
 
   const answerCacheRef = useRef({});
@@ -752,6 +805,12 @@ export default function DevQuiz() {
   const timerRef = useRef(null);
   const prevTimeRef = useRef(null);
 
+  // ── Derive background color from theme (FIX 2) ───────────────────────────
+  // Falls back to the original dark color if no theme provided
+  const bgColor = theme?.bg || "#0a0918";
+  const textColor = theme?.text || "#fffffe";
+
+  // ── Audio ────────────────────────────────────────────────────────────────
   const toggleMute = () => {
     const next = !muted;
     setMuted(next);
@@ -843,16 +902,13 @@ export default function DevQuiz() {
       if (next >= TOTAL) {
         setScore(s => {
           setTimeout(() => {
-            if ((s) / (TOTAL * 10) >= 0.5) audio.playWin();
+            if (s / (TOTAL * 10) >= 0.5) audio.playWin();
             else audio.playLose();
           }, 100);
           return s;
         });
         setPhase("result");
-        setScore(s => {
-          setEmotion(s >= TOTAL * 10 * 0.5 ? "dancing" : "sad");
-          return s;
-        });
+        setEmotion(score + (ok ? 10 : 0) >= TOTAL * 10 * 0.5 ? "dancing" : "sad");
       } else {
         setCur(next);
         setSel(null);
@@ -891,44 +947,64 @@ export default function DevQuiz() {
 
   useEffect(() => () => clearInterval(timerRef.current), []);
 
-  // Only show playing phase
-  const isPlaying = phase === "playing" || phase === "result";
+  // FIX 1: Export a scrollTo helper so Navbar can scroll to this section
+  // The parent page gives this section id="quiz"
+  // FIX 3: Buttons live inside the container, not fixed to viewport
+  // FIX 4: Container is position:relative so absolute character stays inside it
 
   return (
-    <div
+    <section
+      id="quiz"
       ref={containerRef}
-      style={{ fontFamily: "system-ui,-apple-system,sans-serif", background: "#0a0918", color: "#fffffe", minHeight: "100vh" }}
+      style={{
+        // FIX 2: Background color from theme
+        background: bgColor,
+        color: textColor,
+        fontFamily: "system-ui,-apple-system,sans-serif",
+        minHeight: "100vh",
+        // FIX 4: position:relative so the absolute-positioned character canvas
+        // stays within this section and doesn't glitch when the page scrolls
+        position: "relative",
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "80px 16px 40px", // top padding for navbar clearance
+      }}
     >
-      {/* FIX: Mute + secure badge only visible during playing/result phases */}
-      {isPlaying && (
-        <>
-          <div style={{
-            position: "fixed", top: 12, right: 12,
-            background: "rgba(0,0,0,.6)", border: "1px solid rgba(255,255,255,.1)",
-            padding: "5px 10px", borderRadius: 20, fontSize: 10, color: "#6b7280",
-            zIndex: 10000, pointerEvents: "none",
-          }}>🔒 Quiz secured</div>
-          <MuteButton muted={muted} onToggle={toggleMute} />
-        </>
-      )}
+      <Orbs />
 
-      {/* Character always rendered but only during playing/result */}
-      {isPlaying && (
-        <CharacterCanvas
-          phase={phase}
-          answered={answered}
-          emotion={emotion}
-          containerRef={containerRef}
-        />
-      )}
+      {/* FIX 3: Secured badge — inside section, top-right */}
+      <div style={{
+        position: "absolute", top: 12, right: 12,
+        background: "rgba(0,0,0,.6)", border: `1px solid ${theme?.border || "rgba(255,255,255,.1)"}`,
+        padding: "5px 10px", borderRadius: 20, fontSize: 10,
+        color: theme?.textMuted || "#6b7280", zIndex: 100, pointerEvents: "none"
+      }}>🔒 Quiz secured</div>
 
-      {phase === "intro" && <IntroScreen onGoMode={() => setPhase("mode")} />}
+      {/* FIX 3: Mute button — inside section, top-left */}
+      <MuteButton muted={muted} onToggle={toggleMute} />
+
+      {/* FIX 4: Character canvas uses containerRef, position:absolute */}
+      <CharacterCanvas
+        phase={phase}
+        answered={answered}
+        emotion={emotion}
+        containerRef={containerRef}
+      />
+
+      {/* Screen content */}
+      {phase === "intro" && (
+        <IntroScreen onGoMode={() => setPhase("mode")} theme={theme} />
+      )}
       {phase === "mode" && (
         <ModeScreen
           selectedMode={mode}
           onSelectMode={setMode}
           onBack={() => setPhase("intro")}
           onStart={() => startQuiz(mode)}
+          theme={theme}
         />
       )}
       {phase === "playing" && (
@@ -938,6 +1014,7 @@ export default function DevQuiz() {
           timeLeft={timeLeft} results={results}
           onMCQ={handleMCQ} onTF={handleTF} onFill={handleFill}
           getCorrectAnswer={getCA}
+          theme={theme}
         />
       )}
       {phase === "result" && (
@@ -945,8 +1022,9 @@ export default function DevQuiz() {
           results={results} score={score} mode={mode}
           onChangeMode={() => setPhase("mode")}
           onPlayAgain={() => startQuiz(mode)}
+          theme={theme}
         />
       )}
-    </div>
+    </section>
   );
 }
