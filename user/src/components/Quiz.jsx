@@ -1,7 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
-// ─── Data ────────────────────────────────────────────────────────────────────
-
 const ALL_Q = [
   { id: 1, t: "mcq", c: "JavaScript", q: "Which method removes the last element from an array?", o: ["shift()", "pop()", "splice()", "slice()"], a: 1 },
   { id: 2, t: "mcq", c: "React", q: "Which hook runs side effects in React?", o: ["useState", "useRef", "useEffect", "useMemo"], a: 2 },
@@ -45,8 +43,6 @@ const OUTFITS = [
 const TOTAL = 10;
 const OUTFIT_INTERVAL = 3600;
 
-// ─── Security helpers ────────────────────────────────────────────────────────
-
 const _salt = Math.random().toString(36).slice(2);
 const _enc = (v) => btoa(_salt + JSON.stringify(v) + _salt);
 const _dec = (s) => { try { const r = atob(s); return JSON.parse(r.slice(_salt.length, r.length - _salt.length)); } catch { return null; } };
@@ -60,14 +56,10 @@ function secureShuffle(arr) {
   return a;
 }
 
-// ─── Audio Engine (Web Audio API) ────────────────────────────────────────────
-
+// ─── Audio Engine ─────────────────────────────────────────────────────────────
 function createAudioEngine() {
-  let ctx = null;
-  let bgGain = null;
-  let bgNodes = [];
-  let bgPlaying = false;
-  let muted = false;
+  let ctx = null, bgGain = null, bgNodes = [], bgPlaying = false, muted = false;
+  let bgLoopTimer = null;
 
   function getCtx() {
     if (!ctx) {
@@ -80,63 +72,44 @@ function createAudioEngine() {
     return ctx;
   }
 
-  // Synthesise a simple looping background track using oscillators + LFO
   function startBg(happy = true) {
     if (bgPlaying) return;
     bgPlaying = true;
     const c = getCtx();
     bgNodes.forEach(n => { try { n.stop(); } catch { } });
     bgNodes = [];
-
-    // Base notes for a cheerful loop
-    const notes = happy
-      ? [261.63, 329.63, 392.00, 523.25, 392.00, 329.63] // C E G C G E
-      : [220.00, 261.63, 220.00, 196.00, 174.61, 196.00]; // sad descending
-
-    const tempo = happy ? 0.38 : 0.55; // seconds per note
+    const notes = happy ? [261.63, 329.63, 392.00, 523.25, 392.00, 329.63] : [220.00, 261.63, 220.00, 196.00, 174.61, 196.00];
+    const tempo = happy ? 0.38 : 0.55;
     let t = c.currentTime + 0.05;
 
     function scheduleLoop() {
       notes.forEach((freq, i) => {
-        // melody
-        const osc = c.createOscillator();
-        const g = c.createGain();
+        const osc = c.createOscillator(), g = c.createGain();
         osc.type = happy ? "triangle" : "sine";
         osc.frequency.value = freq;
         g.gain.setValueAtTime(0, t + i * tempo);
         g.gain.linearRampToValueAtTime(0.35, t + i * tempo + 0.04);
         g.gain.exponentialRampToValueAtTime(0.001, t + i * tempo + tempo * 0.85);
         osc.connect(g); g.connect(bgGain);
-        osc.start(t + i * tempo);
-        osc.stop(t + i * tempo + tempo);
+        osc.start(t + i * tempo); osc.stop(t + i * tempo + tempo);
         bgNodes.push(osc);
-
-        // bass (one octave down)
         if (i % 2 === 0) {
-          const bass = c.createOscillator();
-          const bg2 = c.createGain();
-          bass.type = "sine";
-          bass.frequency.value = freq / 2;
+          const bass = c.createOscillator(), bg2 = c.createGain();
+          bass.type = "sine"; bass.frequency.value = freq / 2;
           bg2.gain.setValueAtTime(0, t + i * tempo);
           bg2.gain.linearRampToValueAtTime(0.18, t + i * tempo + 0.06);
           bg2.gain.exponentialRampToValueAtTime(0.001, t + i * tempo + tempo * 0.9);
           bass.connect(bg2); bg2.connect(bgGain);
-          bass.start(t + i * tempo);
-          bass.stop(t + i * tempo + tempo);
+          bass.start(t + i * tempo); bass.stop(t + i * tempo + tempo);
           bgNodes.push(bass);
         }
       });
-
       const loopDuration = notes.length * tempo;
       t += loopDuration;
-      // schedule next loop before this one ends
       bgLoopTimer = setTimeout(scheduleLoop, (loopDuration - 0.3) * 1000);
     }
-
     scheduleLoop();
   }
-
-  let bgLoopTimer = null;
 
   function stopBg() {
     bgPlaying = false;
@@ -145,21 +118,15 @@ function createAudioEngine() {
     bgNodes = [];
   }
 
-  // One-shot sound effects
   function playCorrect() {
     if (muted) return;
     const c = getCtx();
     [523.25, 659.25, 783.99].forEach((freq, i) => {
-      const osc = c.createOscillator();
-      const g = c.createGain();
-      osc.type = "triangle";
-      osc.frequency.value = freq;
+      const osc = c.createOscillator(), g = c.createGain();
+      osc.type = "triangle"; osc.frequency.value = freq;
       const t = c.currentTime + i * 0.1;
-      g.gain.setValueAtTime(0, t);
-      g.gain.linearRampToValueAtTime(0.4, t + 0.03);
-      g.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
-      osc.connect(g); g.connect(ctx.destination);
-      osc.start(t); osc.stop(t + 0.26);
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.4, t + 0.03); g.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+      osc.connect(g); g.connect(ctx.destination); osc.start(t); osc.stop(t + 0.26);
     });
   }
 
@@ -167,100 +134,67 @@ function createAudioEngine() {
     if (muted) return;
     const c = getCtx();
     [220, 196].forEach((freq, i) => {
-      const osc = c.createOscillator();
-      const g = c.createGain();
-      osc.type = "sawtooth";
-      osc.frequency.value = freq;
+      const osc = c.createOscillator(), g = c.createGain();
+      osc.type = "sawtooth"; osc.frequency.value = freq;
       const t = c.currentTime + i * 0.12;
-      g.gain.setValueAtTime(0, t);
-      g.gain.linearRampToValueAtTime(0.3, t + 0.04);
-      g.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
-      osc.connect(g); g.connect(ctx.destination);
-      osc.start(t); osc.stop(t + 0.23);
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.3, t + 0.04); g.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+      osc.connect(g); g.connect(ctx.destination); osc.start(t); osc.stop(t + 0.23);
     });
   }
 
   function playTick() {
     if (muted) return;
-    const c = getCtx();
-    const osc = c.createOscillator();
-    const g = c.createGain();
-    osc.type = "sine";
-    osc.frequency.value = 880;
-    g.gain.setValueAtTime(0.18, c.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.08);
-    osc.connect(g); g.connect(ctx.destination);
-    osc.start(); osc.stop(c.currentTime + 0.09);
+    const c = getCtx(), osc = c.createOscillator(), g = c.createGain();
+    osc.type = "sine"; osc.frequency.value = 880;
+    g.gain.setValueAtTime(0.18, c.currentTime); g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.08);
+    osc.connect(g); g.connect(ctx.destination); osc.start(); osc.stop(c.currentTime + 0.09);
   }
 
   function playUrgentTick() {
     if (muted) return;
-    const c = getCtx();
-    const osc = c.createOscillator();
-    const g = c.createGain();
-    osc.type = "square";
-    osc.frequency.value = 1100;
-    g.gain.setValueAtTime(0.22, c.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.07);
-    osc.connect(g); g.connect(ctx.destination);
-    osc.start(); osc.stop(c.currentTime + 0.08);
+    const c = getCtx(), osc = c.createOscillator(), g = c.createGain();
+    osc.type = "square"; osc.frequency.value = 1100;
+    g.gain.setValueAtTime(0.22, c.currentTime); g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.07);
+    osc.connect(g); g.connect(ctx.destination); osc.start(); osc.stop(c.currentTime + 0.08);
   }
 
   function playWin() {
     if (muted) return;
     const c = getCtx();
-    const fanfare = [523.25, 659.25, 783.99, 1046.5, 783.99, 1046.5];
-    fanfare.forEach((freq, i) => {
-      const osc = c.createOscillator();
-      const g = c.createGain();
-      osc.type = "triangle";
-      osc.frequency.value = freq;
+    [523.25, 659.25, 783.99, 1046.5, 783.99, 1046.5].forEach((freq, i) => {
+      const osc = c.createOscillator(), g = c.createGain();
+      osc.type = "triangle"; osc.frequency.value = freq;
       const t = c.currentTime + i * 0.12;
-      g.gain.setValueAtTime(0, t);
-      g.gain.linearRampToValueAtTime(0.5, t + 0.04);
-      g.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
-      osc.connect(g); g.connect(ctx.destination);
-      osc.start(t); osc.stop(t + 0.31);
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.5, t + 0.04); g.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+      osc.connect(g); g.connect(ctx.destination); osc.start(t); osc.stop(t + 0.31);
     });
   }
 
   function playLose() {
     if (muted) return;
     const c = getCtx();
-    const sad = [392, 349.23, 329.63, 261.63];
-    sad.forEach((freq, i) => {
-      const osc = c.createOscillator();
-      const g = c.createGain();
-      osc.type = "sine";
-      osc.frequency.value = freq;
+    [392, 349.23, 329.63, 261.63].forEach((freq, i) => {
+      const osc = c.createOscillator(), g = c.createGain();
+      osc.type = "sine"; osc.frequency.value = freq;
       const t = c.currentTime + i * 0.2;
-      g.gain.setValueAtTime(0, t);
-      g.gain.linearRampToValueAtTime(0.4, t + 0.05);
-      g.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
-      osc.connect(g); g.connect(ctx.destination);
-      osc.start(t); osc.stop(t + 0.46);
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.4, t + 0.05); g.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
+      osc.connect(g); g.connect(ctx.destination); osc.start(t); osc.stop(t + 0.46);
     });
   }
 
-  function setMuted(val) {
-    muted = val;
-    if (bgGain) bgGain.gain.value = val ? 0 : 0.18;
-  }
-
+  function setMuted(val) { muted = val; if (bgGain) bgGain.gain.value = val ? 0 : 0.18; }
   function isMuted() { return muted; }
 
   return { startBg, stopBg, playCorrect, playWrong, playTick, playUrgentTick, playWin, playLose, setMuted, isMuted };
 }
 
-// Singleton audio engine
 let _audioEngine = null;
 function getAudio() {
   if (!_audioEngine) _audioEngine = createAudioEngine();
   return _audioEngine;
 }
 
-// ─── Canvas Character drawing ─────────────────────────────────────────────────
-
+// ─── Character Drawing ────────────────────────────────────────────────────────
 function drawCharacter(ctx, emotion, frame, blinking, dir, jumpY, dancePhase, outfit) {
   ctx.clearRect(0, 0, 110, 180);
   const O = outfit;
@@ -372,17 +306,20 @@ function drawCharacter(ctx, emotion, frame, blinking, dir, jumpY, dancePhase, ou
   ctx.restore(); ctx.restore();
 }
 
-// ─── Character Canvas Component ───────────────────────────────────────────────
+// ─── FIX: Character Canvas — scroll-stable positioning ───────────────────────
+// Character position is stored as fraction of container (0..1) so scroll doesn't glitch it.
+// We use the container's getBoundingClientRect each frame for accurate viewport coords.
 
-function CharacterCanvas({ phase, answered, emotion, sectionRef }) {
+function CharacterCanvas({ phase, answered, emotion, containerRef }) {
   const canvasRef = useRef(null);
   const stateRef = useRef({
-    cx: 120, cy: 120, vx: 0.7, vy: 0.55, dir: 1,
+    // positions as fractions of container width/height (0..1)
+    fx: 0.15, fy: 0.55,
+    vx: 0.7, vy: 0.55, dir: 1,
     frame: 0, blink: 0, blinking: false, emTimer: 0,
     jumpY: 0, shakeX: 0, dancePhase: 0,
     outfitIdx: 0, outfitTimer: 0,
-    // freeze position for result screen
-    frozenX: null, frozenY: null,
+    frozenFx: null, frozenFy: null,
   });
   const emotionRef = useRef(emotion);
   const phaseRef = useRef(phase);
@@ -407,74 +344,88 @@ function CharacterCanvas({ phase, answered, emotion, sectionRef }) {
     const ctx = cv.getContext("2d");
     const s = stateRef.current;
 
-    function getSB() {
-      const el = sectionRef?.current;
-      if (!el) return { x: 0, y: 0, w: window.innerWidth, h: window.innerHeight };
-      const r = el.getBoundingClientRect();
-      return { x: r.left, y: r.top, w: r.width, h: r.height };
+    // Get container rect (viewport-relative). Works correctly with scroll.
+    function getContainerRect() {
+      const el = containerRef?.current;
+      if (!el) return { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight };
+      return el.getBoundingClientRect();
     }
-    function getCB() {
+
+    // Get question card rect in container-local coords (accounts for scroll)
+    function getCardLocalRect(cr) {
       const el = document.getElementById("qcard");
       if (!el) return null;
-      const sr = getSB(), cr = el.getBoundingClientRect();
-      return { x: cr.left - sr.x, y: cr.top - sr.y, w: cr.width, h: cr.height };
+      const er = el.getBoundingClientRect();
+      return {
+        x: er.left - cr.left,
+        y: er.top - cr.top,
+        w: er.width,
+        h: er.height,
+      };
     }
-    function steer() {
-      const cb = getCB(); if (!cb) return;
-      const PAD = 70, mcx = cb.x + cb.w / 2, mcy = cb.y + cb.h / 2;
-      const hw = cb.w / 2 + PAD, hh = cb.h / 2 + PAD;
-      const dx = s.cx - mcx, dy = s.cy - mcy;
+
+    function steer(cr) {
+      const W = cr.width, H = cr.height;
+      const cx = s.fx * W, cy = s.fy * H;
+      const card = getCardLocalRect(cr);
+      if (!card) return;
+      const PAD = 70;
+      const mcx = card.x + card.w / 2, mcy = card.y + card.h / 2;
+      const hw = card.w / 2 + PAD, hh = card.h / 2 + PAD;
+      const dx = cx - mcx, dy = cy - mcy;
       if (Math.abs(dx) < hw && Math.abs(dy) < hh) {
         if (Math.abs(dx) / hw < Math.abs(dy) / hh) s.vy += (dy > 0 ? 1 : -1) * 0.10;
         else s.vx += (dx > 0 ? 1 : -1) * 0.10;
       }
     }
-    function walkStep() {
-      const sb = getSB();
-      const W = sb.w || window.innerWidth, H = sb.h || window.innerHeight, P = 28;
-      steer();
-      s.cx += s.vx; s.cy += s.vy;
-      if (s.cx < P) { s.cx = P; s.vx = Math.abs(s.vx) + 0.05; }
-      if (s.cx > W - P) { s.cx = W - P; s.vx = -(Math.abs(s.vx) + 0.05); }
-      if (s.cy < P) { s.cy = P; s.vy = Math.abs(s.vy) + 0.05; }
-      if (s.cy > H - P) { s.cy = H - P; s.vy = -(Math.abs(s.vy) + 0.05); }
+
+    function walkStep(W, H, cr) {
+      const P = 28;
+      steer(cr);
+      // convert fraction → pixels, move, clamp, convert back
+      let cx = s.fx * W + s.vx;
+      let cy = s.fy * H + s.vy;
+      if (cx < P) { cx = P; s.vx = Math.abs(s.vx) + 0.05; }
+      if (cx > W - P) { cx = W - P; s.vx = -(Math.abs(s.vx) + 0.05); }
+      if (cy < P) { cy = P; s.vy = Math.abs(s.vy) + 0.05; }
+      if (cy > H - P) { cy = H - P; s.vy = -(Math.abs(s.vy) + 0.05); }
       const sp = Math.hypot(s.vx, s.vy);
       if (sp > 1.0) { s.vx = s.vx / sp * 1.0; s.vy = s.vy / sp * 1.0; }
       if (sp < 0.5) { s.vx = s.vx / sp * 0.5; s.vy = s.vy / sp * 0.5; }
       if (Math.random() < 0.004) { s.vx += (Math.random() - 0.5) * 0.25; s.vy += (Math.random() - 0.5) * 0.25; }
       if (s.vx > 0.08) s.dir = 1;
       if (s.vx < -0.08) s.dir = -1;
+      // store back as fractions
+      s.fx = cx / W;
+      s.fy = cy / H;
     }
 
     function loop() {
       const currentPhase = phaseRef.current;
       const e = emotionRef.current;
+      // Get fresh container rect every frame — handles scroll + resize correctly
+      const cr = getContainerRect();
+      const W = cr.width || window.innerWidth;
+      const H = cr.height || window.innerHeight;
 
-      // ── RESULT: character is frozen in place ──────────────────────────────
       if (currentPhase === "result") {
-        // Save freeze position once
-        if (s.frozenX === null) { s.frozenX = s.cx; s.frozenY = s.cy; }
-        s.cx = s.frozenX; s.cy = s.frozenY;
-        s.frame++;
-        s.blink++;
+        if (s.frozenFx === null) { s.frozenFx = s.fx; s.frozenFy = s.fy; }
+        s.fx = s.frozenFx; s.fy = s.frozenFy;
+        s.frame++; s.blink++;
         if (s.blink > 110) { s.blinking = true; if (s.blink > 122) { s.blinking = false; s.blink = 0; } }
         s.emTimer++;
-        // Still animate the emotion pose (dancing/sad) but no movement
         if (e === "dancing") { s.dancePhase++; s.jumpY = Math.abs(Math.sin(s.emTimer * 0.22)) * 18; }
-        else { s.jumpY = 0; s.shakeX = 0; }
-        const sb = getSB();
-        cv.style.left = (sb.x + s.cx - 55) + "px";
-        cv.style.top = (sb.y + s.cy - 90) + "px";
+        else { s.jumpY = 0; }
+        // Position canvas using viewport coords (cr.left/top + fractional offset)
+        cv.style.left = (cr.left + s.fx * W - 55) + "px";
+        cv.style.top = (cr.top + s.fy * H - 90) + "px";
         drawCharacter(ctx, e, s.frame, s.blinking, s.dir, s.jumpY, s.dancePhase, OUTFITS[s.outfitIdx]);
         rafRef.current = requestAnimationFrame(loop);
         return;
       }
 
-      // Reset freeze when leaving result
-      s.frozenX = null; s.frozenY = null;
-
-      s.frame++;
-      s.blink++;
+      s.frozenFx = null; s.frozenFy = null;
+      s.frame++; s.blink++;
       if (s.blink > 110) { s.blinking = true; if (s.blink > 122) { s.blinking = false; s.blink = 0; } }
       s.emTimer++;
 
@@ -491,18 +442,18 @@ function CharacterCanvas({ phase, answered, emotion, sectionRef }) {
       }
 
       const shouldWalk = currentPhase !== "playing" || !answeredRef.current;
-      if (shouldWalk) walkStep();
+      if (shouldWalk) walkStep(W, H, cr);
 
-      const sb = getSB();
-      cv.style.left = (sb.x + s.cx - 55) + "px";
-      cv.style.top = (sb.y + s.cy - 90) + "px";
+      // Always position relative to viewport using cr.left/top — scroll-proof
+      cv.style.left = (cr.left + s.fx * W - 55) + "px";
+      cv.style.top = (cr.top + s.fy * H - 90) + "px";
       drawCharacter(ctx, e, s.frame, s.blinking, s.dir, s.jumpY, s.dancePhase, OUTFITS[s.outfitIdx]);
       rafRef.current = requestAnimationFrame(loop);
     }
 
     rafRef.current = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [sectionRef, showToast]);
+  }, [containerRef, showToast]);
 
   return (
     <>
@@ -520,8 +471,7 @@ function CharacterCanvas({ phase, answered, emotion, sectionRef }) {
   );
 }
 
-// ─── Mute button ─────────────────────────────────────────────────────────────
-
+// ─── FIX: Mute + Secure badge — only shown during "playing" phase ─────────────
 function MuteButton({ muted, onToggle }) {
   return (
     <button onClick={onToggle} title={muted ? "Unmute" : "Mute"} style={{
@@ -530,12 +480,9 @@ function MuteButton({ muted, onToggle }) {
       borderRadius: "50%", width: 38, height: 38, cursor: "pointer",
       display: "flex", alignItems: "center", justifyContent: "center",
       fontSize: 16, color: muted ? "#6b7280" : "#a78bfa",
-      transition: "color .2s, border-color .2s",
     }}>{muted ? "🔇" : "🔊"}</button>
   );
 }
-
-// ─── Shared UI helpers ────────────────────────────────────────────────────────
 
 const Orbs = () => (
   <>
@@ -548,12 +495,10 @@ const screen = { minHeight: "100vh", display: "flex", flexDirection: "column", a
 const card = { background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 20, padding: "28px 24px" };
 const statCard = { background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 18, padding: "20px 24px", minWidth: 100, textAlign: "center", flex: 1, maxWidth: 180 };
 
-// ─── Intro Screen ─────────────────────────────────────────────────────────────
-
 function IntroScreen({ onGoMode }) {
   const items = [["📝", "10", "Questions"], ["🎮", "4", "Difficulties"], ["🔥", "+15", "Streak bonus"], ["👕", "Auto", "Outfit swaps"]];
   return (
-    <section id="qs" style={screen}>
+    <section style={screen}>
       <Orbs />
       <div style={{ maxWidth: 680, width: "100%", textAlign: "center", position: "relative", zIndex: 1 }}>
         <p style={{ color: "#a78bfa", fontSize: 12, fontWeight: 700, letterSpacing: 4, textTransform: "uppercase", marginBottom: 10 }}>Challenge Yourself</p>
@@ -580,29 +525,43 @@ function IntroScreen({ onGoMode }) {
   );
 }
 
-// ─── Mode Screen ──────────────────────────────────────────────────────────────
-
+// ─── FIX: Mode screen — selected card color now works correctly ───────────────
 function ModeScreen({ selectedMode, onSelectMode, onBack, onStart }) {
   return (
-    <section id="qs" style={screen}>
+    <section style={screen}>
       <Orbs />
       <div style={{ maxWidth: 540, width: "100%", textAlign: "center", position: "relative", zIndex: 1 }}>
         <h2 style={{ fontSize: "clamp(22px,4vw,38px)", fontWeight: 900, marginBottom: 6 }}>Pick Your Mode</h2>
         <p style={{ color: "#6b7280", marginBottom: 32 }}>Harder modes = faster timer + bigger challenge</p>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, width: "100%", maxWidth: 500, margin: "0 auto 32px" }}>
-          {MODES.map(m => (
-            <button key={m.id} onClick={() => onSelectMode(m.id)} style={{
-              background: selectedMode === m.id ? `${m.color}20` : "rgba(255,255,255,.04)",
-              border: `2px solid ${selectedMode === m.id ? m.color : "rgba(255,255,255,.1)"}`,
-              boxShadow: selectedMode === m.id ? `0 0 24px ${m.color}28` : "none",
-              borderRadius: 16, padding: "18px 14px", color: "#fffffe",
-              cursor: "pointer", fontFamily: "inherit", fontSize: 13, fontWeight: 600, textAlign: "center",
-            }}>
-              <div style={{ fontSize: 34, marginBottom: 8 }}>{m.emoji}</div>
-              <div style={{ fontSize: 16, fontWeight: 800, color: m.color, marginBottom: 4 }}>{m.label}</div>
-              <div style={{ fontSize: 12, color: "#6b7280" }}>{m.desc}</div>
-            </button>
-          ))}
+          {MODES.map(m => {
+            const isSelected = selectedMode === m.id;
+            return (
+              <button
+                key={m.id}
+                onClick={() => onSelectMode(m.id)}
+                style={{
+                  background: isSelected ? `${m.color}22` : "rgba(255,255,255,.04)",
+                  border: `2px solid ${isSelected ? m.color : "rgba(255,255,255,.1)"}`,
+                  boxShadow: isSelected ? `0 0 28px ${m.color}40` : "none",
+                  borderRadius: 16,
+                  padding: "18px 14px",
+                  color: "#fffffe",
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  textAlign: "center",
+                  transition: "all 0.2s ease",
+                  outline: "none",
+                }}
+              >
+                <div style={{ fontSize: 34, marginBottom: 8 }}>{m.emoji}</div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: isSelected ? m.color : "#e2e8f0", marginBottom: 4, transition: "color 0.2s" }}>{m.label}</div>
+                <div style={{ fontSize: 12, color: isSelected ? m.color : "#6b7280", transition: "color 0.2s" }}>{m.desc}</div>
+              </button>
+            );
+          })}
         </div>
         <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
           <button onClick={onBack} style={{ cursor: "pointer", border: "1px solid rgba(255,255,255,0.15)", fontFamily: "inherit", background: "rgba(255,255,255,0.07)", borderRadius: 50, padding: "13px 28px", color: "#fffffe", fontSize: 14, fontWeight: 600 }}>← Back</button>
@@ -612,8 +571,6 @@ function ModeScreen({ selectedMode, onSelectMode, onBack, onStart }) {
     </section>
   );
 }
-
-// ─── Playing Screen ───────────────────────────────────────────────────────────
 
 function PlayingScreen({ qs, cur, answered, sel, fill, onFillChange, score, streak, mode, timeLeft, results, onMCQ, onTF, onFill, getCorrectAnswer }) {
   const q = qs[cur];
@@ -625,13 +582,11 @@ function PlayingScreen({ qs, cur, answered, sel, fill, onFillChange, score, stre
   const circ = 2 * Math.PI * 24;
 
   return (
-    <section id="qs" style={{ ...screen, padding: "20px 14px" }}>
+    <section style={{ ...screen, padding: "20px 14px" }}>
       <Orbs />
       <div style={{ maxWidth: 620, width: "100%", position: "relative", zIndex: 1 }}>
-        {/* Top meta */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            {/* Timer ring */}
             <div style={{ position: "relative", width: 60, height: 60, flexShrink: 0 }}>
               <svg width="60" height="60" style={{ transform: "rotate(-90deg)", position: "absolute", inset: 0 }}>
                 <circle cx="30" cy="30" r="24" fill="none" stroke="rgba(255,255,255,.07)" strokeWidth="5" />
@@ -658,12 +613,10 @@ function PlayingScreen({ qs, cur, answered, sel, fill, onFillChange, score, stre
           </div>
         </div>
 
-        {/* Progress bar */}
         <div style={{ width: "100%", height: 5, background: "rgba(255,255,255,.08)", borderRadius: 10, overflow: "hidden", marginBottom: 24 }}>
           <div style={{ height: "100%", background: "linear-gradient(90deg,#8b5cf6,#ec4899)", borderRadius: 10, width: `${((cur + 1) / TOTAL) * 100}%`, transition: "width .5s ease" }} />
         </div>
 
-        {/* Question card */}
         <div id="qcard" style={card}>
           <h3 style={{ fontSize: "clamp(16px,2.5vw,20px)", fontWeight: 700, lineHeight: 1.55, marginBottom: 24, whiteSpace: "pre-line", color: "#f1f5f9" }}>{q.q}</h3>
 
@@ -712,8 +665,7 @@ function PlayingScreen({ qs, cur, answered, sel, fill, onFillChange, score, stre
             return (
               <>
                 <div style={{ display: "flex", gap: 10 }}>
-                  <input
-                    type="text" disabled={answered} value={fill}
+                  <input type="text" disabled={answered} value={fill}
                     onChange={e => onFillChange(e.target.value)}
                     onKeyDown={e => { if (e.key === "Enter") onFill(); }}
                     placeholder={`Your answer… hint: ${q.h}`}
@@ -737,14 +689,12 @@ function PlayingScreen({ qs, cur, answered, sel, fill, onFillChange, score, stre
   );
 }
 
-// ─── Result Screen ────────────────────────────────────────────────────────────
-
 function ResultScreen({ results, score, mode, onChangeMode, onPlayAgain }) {
   const ok = results.filter(r => r.ok).length;
   const pct = Math.round((score / (TOTAL * 10)) * 100);
   const M = MODES.find(x => x.id === mode) || MODES[1];
   return (
-    <section id="qs" style={{ ...screen, padding: "24px 14px 60px" }}>
+    <section style={{ ...screen, padding: "24px 14px 60px" }}>
       <Orbs />
       <div style={{ maxWidth: 680, width: "100%", textAlign: "center", position: "relative", zIndex: 1 }}>
         <h2 style={{ fontSize: "clamp(24px,4vw,46px)", fontWeight: 900, marginBottom: 8 }}>{pct >= 50 ? "Nailed it! 🎉" : "Game Over 😢"}</h2>
@@ -779,7 +729,6 @@ function ResultScreen({ results, score, mode, onChangeMode, onPlayAgain }) {
 }
 
 // ─── Main App ─────────────────────────────────────────────────────────────────
-
 export default function DevQuiz() {
   const [phase, setPhase] = useState("intro");
   const [mode, setMode] = useState("medium");
@@ -794,7 +743,8 @@ export default function DevQuiz() {
   const [streak, setStreak] = useState(0);
   const [emotion, setEmotion] = useState("idle");
   const [muted, setMuted] = useState(false);
-  const sectionRef = useRef(null);
+  // containerRef passed to character so it reads getBoundingClientRect each frame
+  const containerRef = useRef(null);
 
   const answerCacheRef = useRef({});
   const committedRef = useRef(false);
@@ -802,26 +752,18 @@ export default function DevQuiz() {
   const timerRef = useRef(null);
   const prevTimeRef = useRef(null);
 
-  // ── Audio ────────────────────────────────────────────────────────────────
   const toggleMute = () => {
     const next = !muted;
     setMuted(next);
     getAudio().setMuted(next);
   };
 
-  // Start / stop background music based on phase
   useEffect(() => {
     const audio = getAudio();
-    if (phase === "playing") {
-      audio.startBg(true);
-    } else if (phase === "result") {
-      audio.stopBg();
-    } else {
-      audio.stopBg();
-    }
+    if (phase === "playing") audio.startBg(true);
+    else audio.stopBg();
   }, [phase]);
 
-  // Play tick sounds when timer changes during playing
   useEffect(() => {
     if (phase !== "playing" || answered) return;
     if (prevTimeRef.current === null) { prevTimeRef.current = timeLeft; return; }
@@ -830,7 +772,6 @@ export default function DevQuiz() {
     prevTimeRef.current = timeLeft;
   }, [timeLeft, phase, answered]);
 
-  // ── Answer cache ─────────────────────────────────────────────────────────
   const cacheAnswers = (questions) => {
     const cache = {};
     questions.forEach((q, i) => { cache[i] = _enc(q.a); });
@@ -883,7 +824,6 @@ export default function DevQuiz() {
     const blank = userAnswer === null || userAnswer === undefined || (typeof userAnswer === "string" && userAnswer.trim() === "");
     const ok = !timedOut && !blank && checkAns(q, curIdx, userAnswer);
 
-    // Play sound effect
     const audio = getAudio();
     if (ok) audio.playCorrect();
     else if (!blank && !timedOut) audio.playWrong();
@@ -901,18 +841,18 @@ export default function DevQuiz() {
     setTimeout(() => {
       const next = curIdx + 1;
       if (next >= TOTAL) {
-        // Play win / lose fanfare
-        const finalOk = ok; // captured in this closure
         setScore(s => {
-          const finalScore = s;
           setTimeout(() => {
-            if (finalScore / (TOTAL * 10) >= 0.5) audio.playWin();
+            if ((s) / (TOTAL * 10) >= 0.5) audio.playWin();
             else audio.playLose();
           }, 100);
           return s;
         });
         setPhase("result");
-        setEmotion(score + (ok ? 10 : 0) >= TOTAL * 10 * 0.5 ? "dancing" : "sad");
+        setScore(s => {
+          setEmotion(s >= TOTAL * 10 * 0.5 ? "dancing" : "sad");
+          return s;
+        });
       } else {
         setCur(next);
         setSel(null);
@@ -951,17 +891,45 @@ export default function DevQuiz() {
 
   useEffect(() => () => clearInterval(timerRef.current), []);
 
-  return (
-    <div style={{ fontFamily: "system-ui,-apple-system,sans-serif", background: "#0a0918", color: "#fffffe", minHeight: "100vh" }} ref={sectionRef}>
-      {/* Fixed HUD */}
-      <div style={{ position: "fixed", top: 12, right: 12, background: "rgba(0,0,0,.6)", border: "1px solid rgba(255,255,255,.1)", padding: "5px 10px", borderRadius: 20, fontSize: 10, color: "#6b7280", zIndex: 10000, pointerEvents: "none" }}>🔒 Quiz secured</div>
-      <MuteButton muted={muted} onToggle={toggleMute} />
+  // Only show playing phase
+  const isPlaying = phase === "playing" || phase === "result";
 
-      <CharacterCanvas phase={phase} answered={answered} emotion={emotion} sectionRef={sectionRef} />
+  return (
+    <div
+      ref={containerRef}
+      style={{ fontFamily: "system-ui,-apple-system,sans-serif", background: "#0a0918", color: "#fffffe", minHeight: "100vh" }}
+    >
+      {/* FIX: Mute + secure badge only visible during playing/result phases */}
+      {isPlaying && (
+        <>
+          <div style={{
+            position: "fixed", top: 12, right: 12,
+            background: "rgba(0,0,0,.6)", border: "1px solid rgba(255,255,255,.1)",
+            padding: "5px 10px", borderRadius: 20, fontSize: 10, color: "#6b7280",
+            zIndex: 10000, pointerEvents: "none",
+          }}>🔒 Quiz secured</div>
+          <MuteButton muted={muted} onToggle={toggleMute} />
+        </>
+      )}
+
+      {/* Character always rendered but only during playing/result */}
+      {isPlaying && (
+        <CharacterCanvas
+          phase={phase}
+          answered={answered}
+          emotion={emotion}
+          containerRef={containerRef}
+        />
+      )}
 
       {phase === "intro" && <IntroScreen onGoMode={() => setPhase("mode")} />}
       {phase === "mode" && (
-        <ModeScreen selectedMode={mode} onSelectMode={setMode} onBack={() => setPhase("intro")} onStart={() => startQuiz(mode)} />
+        <ModeScreen
+          selectedMode={mode}
+          onSelectMode={setMode}
+          onBack={() => setPhase("intro")}
+          onStart={() => startQuiz(mode)}
+        />
       )}
       {phase === "playing" && (
         <PlayingScreen
