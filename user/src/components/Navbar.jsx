@@ -55,16 +55,48 @@ function MagneticDot({ theme }) {
 }
 
 // ── Animated active section indicator ─────────────────────────────────────
+// FIX: replaced IntersectionObserver (which had overlapping rootMargin gaps
+// causing stale "Skills" highlight when scrolling back up to "About") with a
+// direct scroll-position check. We walk every section in order and keep the
+// last one whose top edge has scrolled past the navbar offset — this is always
+// deterministic and updates correctly in both scroll directions.
 function useActiveSection() {
   const [active, setActive] = useState('home');
+
   useEffect(() => {
     const ids = NAV_LINKS.map(l => l.toLowerCase());
-    const observer = new IntersectionObserver(entries => {
-      entries.forEach(e => { if (e.isIntersecting) setActive(e.target.id); });
-    }, { rootMargin: '-40% 0px -55% 0px' });
-    ids.forEach(id => { const el = document.getElementById(id); if (el) observer.observe(el); });
-    return () => observer.disconnect();
+    const OFFSET = 80; // navbar height + a small buffer
+
+    const getActive = () => {
+      const scrollY = window.scrollY;
+
+      // Edge case: user has scrolled to the very bottom → highlight last section
+      if (window.innerHeight + scrollY >= document.documentElement.scrollHeight - 4) {
+        setActive(ids[ids.length - 1]);
+        return;
+      }
+
+      // Walk sections top-to-bottom; keep updating `current` as long as the
+      // section's top has passed our offset line. The last match wins, so we
+      // always get the section that is highest on screen without going past the nav.
+      let current = ids[0];
+      for (const id of ids) {
+        const el = document.getElementById(id);
+        if (el) {
+          const sectionTop = el.getBoundingClientRect().top + scrollY;
+          if (sectionTop - OFFSET <= scrollY) {
+            current = id;
+          }
+        }
+      }
+      setActive(current);
+    };
+
+    getActive(); // run once immediately so the initial state is correct
+    window.addEventListener('scroll', getActive, { passive: true });
+    return () => window.removeEventListener('scroll', getActive);
   }, []);
+
   return active;
 }
 
