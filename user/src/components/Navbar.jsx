@@ -65,34 +65,33 @@ function useActiveSection() {
 
   useEffect(() => {
     const ids = NAV_LINKS.map(l => l.toLowerCase());
-    const OFFSET = 80; // navbar height + a small buffer
+    const NAVBAR_HEIGHT = 80;
 
     const getActive = () => {
-      const scrollY = window.scrollY;
+      // Measure every section's top relative to the navbar bottom
+      const sections = ids
+        .map(id => {
+          const el = document.getElementById(id);
+          if (!el) return null;
+          return { id, dist: el.getBoundingClientRect().top - NAVBAR_HEIGHT };
+        })
+        .filter(Boolean);
 
-      // Edge case: user has scrolled to the very bottom → highlight last section
-      if (window.innerHeight + scrollY >= document.documentElement.scrollHeight - 4) {
-        setActive(ids[ids.length - 1]);
-        return;
-      }
+      if (!sections.length) return;
 
-      // Walk sections top-to-bottom; keep updating `current` as long as the
-      // section's top has passed our offset line. The last match wins, so we
-      // always get the section that is highest on screen without going past the nav.
-      let current = ids[0];
-      for (const id of ids) {
-        const el = document.getElementById(id);
-        if (el) {
-          const sectionTop = el.getBoundingClientRect().top + scrollY;
-          if (sectionTop - OFFSET <= scrollY) {
-            current = id;
-          }
-        }
+      // Sections that have already scrolled past (or sit exactly at) the navbar line
+      const passed = sections.filter(s => s.dist <= 0);
+
+      if (passed.length === 0) {
+        setActive(ids[0]);
+      } else {
+        // The one with the highest (least negative) dist is the current section
+        const current = passed.reduce((best, s) => (s.dist > best.dist ? s : best));
+        setActive(current.id);
       }
-      setActive(current);
     };
 
-    getActive(); // run once immediately so the initial state is correct
+    getActive();
     window.addEventListener('scroll', getActive, { passive: true });
     return () => window.removeEventListener('scroll', getActive);
   }, []);
