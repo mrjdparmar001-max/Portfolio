@@ -17,7 +17,7 @@ const ALL_Q = [
   { id: 11, t: "truefalse", c: "CSS", q: "CSS Grid and Flexbox cannot be used together.", a: false },
   { id: 12, t: "truefalse", c: "Node.js", q: "Node.js runs JavaScript on the server side.", a: true },
   { id: 13, t: "fill", c: "JavaScript", q: "Complete: const square = x => x ___ x;", a: "*", h: "arithmetic operator" },
-  { id: 14, t: "fill", c: "React", q: "Hook to store mutable values without re-render: use___", a: "Ref", h: "access DOM elements" },
+  { id: 14, t: "fill", c: "React", q: "Hook to store mutable values without re-render: use___", a: "Ref", h: "type: Ref (case-insensitive)" },
   { id: 15, t: "fill", c: "CSS", q: "To center flex items use: align-items: ____;", a: "center", h: "middle alignment" },
   { id: 16, t: "fill", c: "Node.js", q: "Import a module in Node.js: const x = ___('mod');", a: "require", h: "CommonJS import" },
   { id: 17, t: "mcq", c: "🧩 Puzzle", q: "What does this output?\nconsole.log(typeof null)", o: ['"null"', '"undefined"', '"object"', '"string"'], a: 2 },
@@ -44,8 +44,6 @@ const OUTFITS = [
 ];
 
 const TOTAL = 10;
-// FIX 4: Outfit changes every hour = 3600 seconds = 3600000ms real time
-// Track via Date.now() instead of frame count to survive scroll/tab-blur
 const OUTFIT_INTERVAL_MS = 3600 * 1000;
 
 // ─── Security helpers ────────────────────────────────────────────────────────
@@ -369,19 +367,14 @@ function drawCharacter(ctx, emotion, frame, blinking, dir, jumpY, dancePhase, ou
 }
 
 // ─── Character Canvas Component ───────────────────────────────────────────────
-// FIX 4: Character position is now relative to its CONTAINER (the quiz section div),
-// not the viewport. This prevents glitching when the page scrolls.
-// The canvas uses position:absolute inside a relative container instead of position:fixed.
 
 function CharacterCanvas({ phase, answered, emotion, containerRef }) {
   const canvasRef = useRef(null);
   const stateRef = useRef({
-    // Start at a safe position within the container
     cx: 120, cy: 200, vx: 0.7, vy: 0.55, dir: 1,
     frame: 0, blink: 0, blinking: false, emTimer: 0,
     jumpY: 0, shakeX: 0, dancePhase: 0,
     outfitIdx: 0,
-    // FIX 4: Use real time for outfit changes, not frame counts
     outfitChangedAt: Date.now(),
     frozenX: null, frozenY: null,
   });
@@ -408,14 +401,12 @@ function CharacterCanvas({ phase, answered, emotion, containerRef }) {
     const ctx = cv.getContext("2d");
     const s = stateRef.current;
 
-    // FIX 4: Get bounds of the CONTAINER div (not screen)
     function getContainerSize() {
       const el = containerRef?.current;
       if (!el) return { w: window.innerWidth, h: window.innerHeight };
       return { w: el.offsetWidth, h: el.offsetHeight };
     }
 
-    // FIX 4: Find the question card relative to the container
     function getQCardBounds() {
       const el = document.getElementById("qcard");
       const container = containerRef?.current;
@@ -458,7 +449,6 @@ function CharacterCanvas({ phase, answered, emotion, containerRef }) {
       const currentPhase = phaseRef.current;
       const e = emotionRef.current;
 
-      // FIX 4: Check outfit change using real clock time
       const now = Date.now();
       if (now - s.outfitChangedAt >= OUTFIT_INTERVAL_MS) {
         s.outfitChangedAt = now;
@@ -496,7 +486,6 @@ function CharacterCanvas({ phase, answered, emotion, containerRef }) {
       const shouldWalk = currentPhase !== "playing" || !answeredRef.current;
       if (shouldWalk) walkStep();
 
-      // FIX 4: position relative to container (position:absolute), not viewport
       cv.style.left = (s.cx - 55) + "px";
       cv.style.top = (s.cy - 90) + "px";
       drawCharacter(ctx, e, s.frame, s.blinking, s.dir, s.jumpY, s.dancePhase, OUTFITS[s.outfitIdx]);
@@ -509,7 +498,6 @@ function CharacterCanvas({ phase, answered, emotion, containerRef }) {
 
   return (
     <>
-      {/* FIX 4: position:absolute so it moves with the container, not fixed to viewport */}
       <canvas ref={canvasRef} width={110} height={180}
         style={{ position: "absolute", pointerEvents: "none", zIndex: 9999 }} />
       <div style={{
@@ -525,7 +513,6 @@ function CharacterCanvas({ phase, answered, emotion, containerRef }) {
 }
 
 // ─── Mute button ─────────────────────────────────────────────────────────────
-// FIX 3: Mute button positioned inside the quiz section, not fixed to viewport
 
 function MuteButton({ muted, onToggle }) {
   return (
@@ -552,10 +539,9 @@ const Orbs = () => (
 const card = { background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 20, padding: "28px 24px" };
 const statCard = { background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 18, padding: "20px 24px", minWidth: 100, textAlign: "center", flex: 1, maxWidth: 180 };
 
-// ─── Inner screens (no longer set minHeight themselves, parent handles it) ────
+// ─── Inner screens ────────────────────────────────────────────────────────────
 
 function IntroScreen({ onGoMode, theme }) {
-  // FIX 2: Accept theme prop and apply theme colors
   const accentColor = theme?.primary || "#a78bfa";
   const gradient = theme?.gradient || "linear-gradient(135deg,#a78bfa,#f472b6)";
   const items = [["📝", "10", "Questions"], ["🎮", "4", "Difficulties"], ["🔥", "+15", "Streak bonus"], ["👕", "Auto", "Outfit swaps"]];
@@ -585,7 +571,6 @@ function IntroScreen({ onGoMode, theme }) {
 }
 
 function ModeScreen({ selectedMode, onSelectMode, onBack, onStart, theme }) {
-  // FIX 2: Apply theme colors
   const gradient = theme?.gradient || "linear-gradient(135deg,#8b5cf6,#ec4899)";
   return (
     <div style={{ maxWidth: 540, width: "100%", textAlign: "center", position: "relative", zIndex: 1 }}>
@@ -622,7 +607,6 @@ function PlayingScreen({ qs, cur, answered, sel, fill, onFillChange, score, stre
   const timerClr = timeLeft <= 5 ? "#ff4040" : M.color;
   const pct = timeLeft / M.time;
   const circ = 2 * Math.PI * 24;
-  // FIX 2: use theme colors
   const textColor = theme?.text || "#f1f5f9";
   const mutedColor = theme?.textMuted || "#6b7280";
   const borderColor = theme?.border || "rgba(255,255,255,0.1)";
@@ -705,25 +689,57 @@ function PlayingScreen({ qs, cur, answered, sel, fill, onFillChange, score, stre
           </div>
         )}
 
+        {/* ── Fill in the blank ── */}
         {q.t === "fill" && (() => {
           const lastR = results[results.length - 1];
           return (
             <>
+              {/* FIX: Case-insensitive badge shown on the input */}
+              <div style={{ marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{
+                  fontSize: 11, fontWeight: 700, letterSpacing: 0.5,
+                  color: "#a78bfa", background: "rgba(167,139,250,0.12)",
+                  border: "1px solid rgba(167,139,250,0.25)",
+                  padding: "2px 8px", borderRadius: 20,
+                }}>
+                  🔤 Case-insensitive
+                </span>
+                <span style={{ fontSize: 12, color: mutedColor }}>Hint: {q.h}</span>
+              </div>
               <div style={{ display: "flex", gap: 10 }}>
                 <input
-                  type="text" disabled={answered} value={fill}
+                  type="text"
+                  disabled={answered}
+                  value={fill}
                   onChange={e => onFillChange(e.target.value)}
                   onKeyDown={e => { if (e.key === "Enter") onFill(); }}
-                  placeholder={`Your answer… hint: ${q.h}`}
-                  style={{ flex: 1, padding: "14px 16px", borderRadius: 14, background: theme?.bgCard ? theme.bgCard + "66" : "rgba(255,255,255,.06)", border: `2px solid ${borderColor}`, color: textColor, fontSize: 14, fontFamily: "inherit", outline: "none", height: 50 }}
+                  placeholder="Your answer…"
+                  style={{
+                    flex: 1, padding: "14px 16px", borderRadius: 14,
+                    background: theme?.bgCard ? theme.bgCard + "66" : "rgba(255,255,255,.06)",
+                    border: `2px solid ${borderColor}`, color: textColor,
+                    fontSize: 14, fontFamily: "inherit", outline: "none", height: 50,
+                  }}
                 />
                 {!answered && (
-                  <button onClick={onFill} style={{ background: theme?.gradient || "linear-gradient(135deg,#8b5cf6,#ec4899)", color: "#fff", border: "none", borderRadius: 14, padding: "0 22px", fontWeight: 700, cursor: "pointer", fontSize: 14, fontFamily: "inherit", height: 50 }}>Submit</button>
+                  <button onClick={onFill} style={{
+                    background: theme?.gradient || "linear-gradient(135deg,#8b5cf6,#ec4899)",
+                    color: "#fff", border: "none", borderRadius: 14, padding: "0 22px",
+                    fontWeight: 700, cursor: "pointer", fontSize: 14, fontFamily: "inherit", height: 50,
+                  }}>Submit</button>
                 )}
               </div>
               {answered && lastR && (
-                <div style={{ marginTop: 10, padding: "11px 14px", borderRadius: 12, fontSize: 13, background: lastR.ok ? "rgba(67,233,123,.1)" : "rgba(255,101,132,.1)", border: `1px solid ${lastR.ok ? "#43e97b" : "#ff6584"}`, color: lastR.ok ? "#43e97b" : "#ff6584" }}>
-                  {lastR.ok ? "✓ Correct!" : <>✗ Correct answer: <strong>{q.a}</strong></>}
+                <div style={{
+                  marginTop: 10, padding: "11px 14px", borderRadius: 12, fontSize: 13,
+                  background: lastR.ok ? "rgba(67,233,123,.1)" : "rgba(255,101,132,.1)",
+                  border: `1px solid ${lastR.ok ? "#43e97b" : "#ff6584"}`,
+                  color: lastR.ok ? "#43e97b" : "#ff6584",
+                }}>
+                  {lastR.ok
+                    ? "✓ Correct!"
+                    : <>✗ Correct answer: <strong>{q.a}</strong></>
+                  }
                 </div>
               )}
             </>
@@ -780,7 +796,6 @@ function ResultScreen({ results, score, mode, onChangeMode, onPlayAgain, theme }
 // ─── Main App ─────────────────────────────────────────────────────────────────
 
 export default function DevQuiz() {
-  // Read theme live from context — updates instantly when user switches theme
   const { theme } = useTheme();
   const [phase, setPhase] = useState("intro");
   const [mode, setMode] = useState("medium");
@@ -796,21 +811,16 @@ export default function DevQuiz() {
   const [emotion, setEmotion] = useState("idle");
   const [muted, setMuted] = useState(false);
 
-  // FIX 3 & 4: containerRef for the quiz section div (position:relative)
   const containerRef = useRef(null);
-
   const answerCacheRef = useRef({});
   const committedRef = useRef(false);
   const lastCommitRef = useRef(0);
   const timerRef = useRef(null);
   const prevTimeRef = useRef(null);
 
-  // ── Derive background color from theme (FIX 2) ───────────────────────────
-  // Falls back to the original dark color if no theme provided
   const bgColor = theme?.bg || "#0a0918";
   const textColor = theme?.text || "#fffffe";
 
-  // ── Audio ────────────────────────────────────────────────────────────────
   const toggleMute = () => {
     const next = !muted;
     setMuted(next);
@@ -845,12 +855,19 @@ export default function DevQuiz() {
     return true;
   };
 
+  // ── FIXED: case-insensitive fill comparison ──────────────────────────────
+  // Both sides are trimmed and lowercased so "Ref", "REF", "ref" all pass.
+  // This is the single source of truth — no duplication elsewhere.
   const checkAns = useCallback((q, idx, userSel) => {
     const correct = getCA(idx);
     if (correct === null) return false;
     if (q.t === "mcq") return userSel === correct;
     if (q.t === "truefalse") return userSel === correct;
-    if (q.t === "fill") return typeof userSel === "string" && userSel.trim().toLowerCase() === String(correct).toLowerCase();
+    if (q.t === "fill") {
+      const userNorm = typeof userSel === "string" ? userSel.trim().toLowerCase() : "";
+      const correctNorm = String(correct).trim().toLowerCase();
+      return userNorm !== "" && userNorm === correctNorm;
+    }
     return false;
   }, [getCA]);
 
@@ -870,6 +887,9 @@ export default function DevQuiz() {
     }, 1000);
   }, []);
 
+  // Mood thresholds: <5 correct=sad face, 5-7=smile, 8-10=dancing
+  const getMood = (n) => n >= 8 ? "dancing" : n >= 5 ? "correct" : "sad";
+
   const commitRef = useRef(null);
   commitRef.current = (userAnswer, timedOut = false, commitMode, commitQs, commitCur) => {
     if (committedRef.current) return;
@@ -887,6 +907,9 @@ export default function DevQuiz() {
     if (ok) audio.playCorrect();
     else if (!blank && !timedOut) audio.playWrong();
 
+    // Compute running correct count to set persistent mood after flash
+    const newCorrects = results.filter(r => r.ok).length + (ok ? 1 : 0);
+
     setAnswered(true);
     setSel(userAnswer);
     setStreak(prev => {
@@ -894,6 +917,7 @@ export default function DevQuiz() {
       setScore(s => s + (ok ? (newStreak >= 3 ? 15 : 10) : 0));
       return newStreak;
     });
+    // Immediate per-answer flash (correct/wrong/skipped)
     setEmotion(timedOut || blank ? "skipped" : ok ? "correct" : "wrong");
     setResults(prev => [...prev, { q, userAnswer, ok, timedOut: timedOut || blank }]);
 
@@ -908,14 +932,16 @@ export default function DevQuiz() {
           return s;
         });
         setPhase("result");
-        setEmotion(score + (ok ? 10 : 0) >= TOTAL * 10 * 0.5 ? "dancing" : "sad");
+        // Final result screen uses same mood logic
+        setEmotion(getMood(newCorrects));
       } else {
         setCur(next);
         setSel(null);
         setFill("");
         setAnswered(false);
         committedRef.current = false;
-        setEmotion("idle");
+        // Settle into score-based mood: sad / smile / dancing
+        setEmotion(getMood(newCorrects));
         startTimer(curMode, curQs, next);
       }
     }, timedOut || blank ? 900 : 1400);
@@ -947,35 +973,26 @@ export default function DevQuiz() {
 
   useEffect(() => () => clearInterval(timerRef.current), []);
 
-  // FIX 1: Export a scrollTo helper so Navbar can scroll to this section
-  // The parent page gives this section id="quiz"
-  // FIX 3: Buttons live inside the container, not fixed to viewport
-  // FIX 4: Container is position:relative so absolute character stays inside it
-
   return (
     <section
       id="quiz"
       ref={containerRef}
       style={{
-        // FIX 2: Background color from theme
         background: bgColor,
         color: textColor,
         fontFamily: "system-ui,-apple-system,sans-serif",
         minHeight: "100vh",
-        // FIX 4: position:relative so the absolute-positioned character canvas
-        // stays within this section and doesn't glitch when the page scrolls
         position: "relative",
         overflow: "hidden",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        padding: "80px 16px 40px", // top padding for navbar clearance
+        padding: "80px 16px 40px",
       }}
     >
       <Orbs />
 
-      {/* FIX 3: Secured badge — inside section, top-right */}
       <div style={{
         position: "absolute", top: 12, right: 12,
         background: "rgba(0,0,0,.6)", border: `1px solid ${theme?.border || "rgba(255,255,255,.1)"}`,
@@ -983,10 +1000,8 @@ export default function DevQuiz() {
         color: theme?.textMuted || "#6b7280", zIndex: 100, pointerEvents: "none"
       }}>🔒 Quiz secured</div>
 
-      {/* FIX 3: Mute button — inside section, top-left */}
       <MuteButton muted={muted} onToggle={toggleMute} />
 
-      {/* FIX 4: Character canvas uses containerRef, position:absolute */}
       <CharacterCanvas
         phase={phase}
         answered={answered}
@@ -994,10 +1009,7 @@ export default function DevQuiz() {
         containerRef={containerRef}
       />
 
-      {/* Screen content */}
-      {phase === "intro" && (
-        <IntroScreen onGoMode={() => setPhase("mode")} theme={theme} />
-      )}
+      {phase === "intro" && <IntroScreen onGoMode={() => setPhase("mode")} theme={theme} />}
       {phase === "mode" && (
         <ModeScreen
           selectedMode={mode}
