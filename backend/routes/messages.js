@@ -5,20 +5,6 @@ const nodemailer = require('nodemailer');
 
 const router = express.Router();
 
-// ── Create transporter INSIDE a function so env vars are always loaded ──
-const createTransporter = () =>
-  nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 465,
-    secure: true, // SSL - faster and more reliable than service:'gmail'
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
-    },
-    connectionTimeout: 10000, // 10s
-    socketTimeout: 10000,
-  });
-
 // ── POST /api/messages — user sends message ──
 router.post('/', async (req, res) => {
   try {
@@ -34,7 +20,7 @@ router.post('/', async (req, res) => {
 router.get('/', auth, async (req, res) => {
   try {
     const messages = await Message.find().sort({ createdAt: -1 });
-    res.json({ data: messages }); // wrapped in {data} to match frontend r.data
+    res.json({ data: messages });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -63,55 +49,79 @@ router.put('/:id/reply', auth, async (req, res) => {
       return res.status(400).json({ message: 'Reply text is required' });
     }
 
-    // 1. Find message
     const msg = await Message.findById(req.params.id);
     if (!msg) {
       return res.status(404).json({ message: 'Message not found' });
     }
 
-    // 2. Save reply to DB first (fast)
-    msg.adminReply = reply;
-    msg.replied = true;
-    msg.read = true;
-    await msg.save();
+    // ── Step 1: Send email FIRST, wait for result ──
+    const transporter = nodemailer.createTransport({
+      host: 'smtp.gmail.com',
+      port: 587,
+      secure: false,
+      requireTLS: true,
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+      tls: {
+        rejectUnauthorized: false,
+      },
+    });
 
-    // 3. Send email (async - don't block response)
-    const transporter = createTransporter();
+    console.log('📧 Attempting to send email to:', msg.email);
+    console.log('📧 From:', process.env.EMAIL_USER);
+    console.log('📧 Pass set:', !!process.env.EMAIL_PASS);
 
-    // Verify credentials before sending
-    transporter.verify((error) => {
-      if (error) {
-        console.error('❌ Email transporter error:', error.message);
-        // Don't fail the request - DB was already saved
-      } else {
-        transporter.sendMail({
-          from: `"Jaydip Parmar" <${process.env.EMAIL_USER}>`,
-          to: msg.email,
-          subject: `Re: ${msg.subject || 'Your Message'}`,
-          html: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; background: #f9f9f9; border-radius: 8px;">
-              <h2 style="color: #6c63ff;">Hello ${msg.name},</h2>
-              <div style="background: #fff; border-left: 4px solid #6c63ff; padding: 16px 20px; border-radius: 4px; margin: 16px 0;">
-                <p style="color: #333; font-size: 15px; line-height: 1.7;">${reply}</p>
-              </div>
-              <p style="color: #555;">Best Regards,</p>
-              <p style="color: #333;"><strong>Jaydip Parmar</strong></p>
+    try {
+      const info = await transporter.sendMail({
+        from: `"Jaydip Parmar" <${process.env.EMAIL_USER}>`,
+        to: msg.email,
+        subject: `Re: ${msg.subject || 'Your Message'}`,
+        text: reply, // plain text fallback
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; background: #f9f9f9; border-radius: 8px;">
+            <h2 style="color: #6c63ff;">Hello ${msg.name},</h2>
+            <p style="color: #555;">Thank you for reaching out. Here is my reply:</p>
+            <div style="background: #fff; border-left: 4px solid #6c63ff; padding: 16px 20px; border-radius: 4px; margin: 16px 0;">
+              <p style="color: #333; font-size: 15px; line-height: 1.7;">${reply}</p>
             </div>
-          `,
-        }).then(() => {
-          console.log(`✅ Email sent to ${msg.email}`);
-        }).catch((err) => {
-          console.error('❌ Email send failed:', err.message);
-        });
-      }
-    });
+            <p style="color: #555;">Best Regards,</p>
+            <p style="color: #333;"><strong>Jaydip Parmar</strong></p>
+            <p style="color: #999; font-size: 12px;">This is a reply to your message: "${msg.message}"</p>
+          </div>
+        `,
+      });
 
-    // 4. Respond immediately without waiting for email
-    res.json({
-      success: true,
-      message: 'Reply saved. Email sending in background.',
-      data: msg,
-    });
+      console.log('✅ Email sent successfully! MessageId:', info.messageId);
+
+      // ── Step 2: Save to DB only after email succeeds ──
+      msg.adminReply = reply;
+      msg.replied = true;
+      msg.read = true;
+      await msg.save();
+
+      res.json({
+        success: true,
+        message: 'Reply sent and email delivered!',
+        data: msg,
+      });
+
+    } catch (emailErr) {
+      console.error('❌ Email failed:', emailErr.message);
+      console.error('❌ Full error:', emailErr);
+
+      // Still save reply to DB even if email fails
+      msg.adminReply = reply;
+      msg.replied = true;
+      msg.read = true;
+      await msg.save();
+
+      // Return 500 so frontend shows error toast
+      return res.status(500).json({
+        message: `Email failed: ${emailErr.message}`,
+      });
+    }
 
   } catch (err) {
     console.error('Reply route error:', err);
