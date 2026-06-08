@@ -8,6 +8,8 @@ export default function Messages({ onUpdate }) {
   const [expanded, setExpanded] = useState(null);
   const [replyText, setReplyText] = useState({});
   const [sending, setSending] = useState(null);
+  const [successId, setSuccessId] = useState(null);
+  const [errorId, setErrorId] = useState(null);
 
   const load = () => getMessages().then(r => { setMessages(r.data); onUpdate?.(); }).catch(() => {});
 
@@ -22,10 +24,20 @@ export default function Messages({ onUpdate }) {
   const handleReply = async (id) => {
     if (!replyText[id]?.trim()) return;
     setSending(id);
-    await replyMessage(id, replyText[id]);
-    setReplyText({ ...replyText, [id]: '' });
-    setSending(null);
-    load();
+    setSuccessId(null);
+    setErrorId(null);
+    try {
+      await replyMessage(id, replyText[id]);
+      setReplyText({ ...replyText, [id]: '' });
+      setSuccessId(id);
+      setTimeout(() => setSuccessId(null), 3000);
+      load();
+    } catch (err) {
+      setErrorId(id);
+      setTimeout(() => setErrorId(null), 3000);
+    } finally {
+      setSending(null);
+    }
   };
 
   const handleDelete = async (id) => {
@@ -122,6 +134,28 @@ export default function Messages({ onUpdate }) {
                         </div>
                       )}
 
+                      {/* Success Toast */}
+                      {successId === msg._id && (
+                        <div style={{
+                          background: '#43e97b20', border: '1px solid #43e97b50',
+                          borderRadius: 10, padding: '10px 16px', marginBottom: 12,
+                          color: '#43e97b', fontSize: 13, fontWeight: 600,
+                        }}>
+                          ✓ Reply sent! Email delivered to {msg.email}
+                        </div>
+                      )}
+
+                      {/* Error Toast */}
+                      {errorId === msg._id && (
+                        <div style={{
+                          background: '#ff658420', border: '1px solid #ff658450',
+                          borderRadius: 10, padding: '10px 16px', marginBottom: 12,
+                          color: '#ff6584', fontSize: 13, fontWeight: 600,
+                        }}>
+                          ✗ Failed to send email. Check EMAIL_USER / EMAIL_PASS in your .env file.
+                        </div>
+                      )}
+
                       <div style={{ display: 'flex', gap: 12 }}>
                         <input
                           placeholder="Type your reply..."
@@ -140,13 +174,15 @@ export default function Messages({ onUpdate }) {
                           onClick={() => handleReply(msg._id)}
                           disabled={sending === msg._id}
                           style={{
-                            background: 'linear-gradient(135deg, #6c63ff, #ff6584)',
+                            background: sending === msg._id
+                              ? '#444'
+                              : 'linear-gradient(135deg, #6c63ff, #ff6584)',
                             border: 'none', borderRadius: 10, padding: '12px 20px',
-                            color: '#fff', cursor: 'pointer', fontSize: 18,
-                            display: 'flex', alignItems: 'center',
+                            color: '#fff', cursor: sending === msg._id ? 'not-allowed' : 'pointer',
+                            fontSize: 18, display: 'flex', alignItems: 'center',
                           }}
                         >
-                          <FiSend />
+                          {sending === msg._id ? '...' : <FiSend />}
                         </motion.button>
                       </div>
                     </div>
