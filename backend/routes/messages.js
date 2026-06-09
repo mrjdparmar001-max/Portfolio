@@ -12,6 +12,13 @@ const transporter = nodemailer.createTransport({
     pass: process.env.EMAIL_PASS,
   },
 });
+transporter.verify((error, success) => {
+  if (error) {
+    console.log("MAIL ERROR:", error);
+  } else {
+    console.log("MAIL SERVER READY");
+  }
+});
 
 router.post('/', async (req, res) => {
   try {
@@ -59,20 +66,32 @@ router.put('/:id/reply', auth, async (req, res) => {
 
     await msg.save();
 
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: msg.email,
-      subject: `Reply: ${msg.subject || 'Your Message'}`,
-      html: `
-        <div style="font-family: Arial, sans-serif;">
-          <h2>Hello ${msg.name},</h2>
-          <p>${req.body.reply}</p>
-          <br/>
-          <p>Best Regards,</p>
-          <p><strong>Jaydip Parmar</strong></p>
-        </div>
-      `,
-    });
+    try {
+  await transporter.sendMail({
+    from: process.env.EMAIL_USER,
+    to: msg.email,
+    subject: `Reply: ${msg.subject || 'Your Message'}`,
+    html: `
+      <div style="font-family: Arial, sans-serif;">
+        <h2>Hello ${msg.name},</h2>
+        <p>${req.body.reply}</p>
+        <br/>
+        <p>Best Regards,</p>
+        <p><strong>Jaydip Parmar</strong></p>
+      </div>
+    `,
+  });
+
+  console.log("EMAIL SENT TO:", msg.email);
+
+} catch (mailError) {
+  console.error("EMAIL ERROR:", mailError);
+
+  return res.status(500).json({
+    success: false,
+    message: "Email sending failed",
+  });
+}
 
     res.json({
       success: true,
