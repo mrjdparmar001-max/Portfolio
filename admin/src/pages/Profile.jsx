@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { FiMail, FiPhone, FiMapPin, FiSave, FiUpload, FiFileText, FiExternalLink, FiCamera, FiGithub, FiLinkedin, FiTwitter, FiTrendingUp, FiSmile, FiAward } from 'react-icons/fi';
 import { getProfile, updateProfile, uploadResume, uploadAvatar } from '../api/api';
-import { removeBackground } from '@imgly/background-removal';
+import { removeBackground, preload } from '@imgly/background-removal';
 
 const fields = [
   { key: 'email', label: 'Email', icon: <FiMail />, type: 'email', placeholder: 'admin@example.com' },
@@ -23,6 +23,7 @@ export default function Profile() {
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [avatarStatus, setAvatarStatus] = useState('');
   const [bgRemoving, setBgRemoving] = useState(false);
+  const [bgProgress, setBgProgress] = useState(0);
   const avatarInputRef = useRef();
 
   useEffect(() => {
@@ -31,6 +32,9 @@ export default function Profile() {
       setResume(r.data.resume || '');
       setAvatar(r.data.avatar || '');
     }).catch(() => { });
+
+    // Preload the small model in background so first upload is faster
+    preload({ model: 'small' }).catch(() => {});
   }, []);
 
   const handleSave = async (e) => {
@@ -61,24 +65,51 @@ export default function Profile() {
     setTimeout(() => setResumeStatus(''), 4000);
   };
 
- const handleAvatarUpload = async (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
+  const handleAvatarUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
 
-  try {
-    setAvatarUploading(true);
+    try {
+      // Step 1: Remove background using small (fast) model
+      setBgRemoving(true);
+      setBgProgress(0);
 
-    const res = await uploadAvatar(file);
+      const bgRemovedBlob = await removeBackground(file, {
+        model: 'small',
+        output: { format: 'image/png', quality: 0.9 },
+        progress: (key, current, total) => {
+          if (total > 0) setBgProgress(Math.round((current / total) * 100));
+        },
+      });
 
-    setAvatar(res.data.url);
-    setAvatarStatus("success");
-  } catch (error) {
-    console.error(error);
-    setAvatarStatus("error");
-  } finally {
-    setAvatarUploading(false);
-  }
-};
+      // Step 2: Convert Blob → File (uploadAvatar expects a File object)
+      const processedFile = new File(
+        [bgRemovedBlob],
+        file.name.replace(/\.[^.]+$/, '.png'),
+        { type: 'image/png' }
+      );
+
+      // Step 3: Upload processed image
+      setBgRemoving(false);
+      setAvatarUploading(true);
+
+      const res = await uploadAvatar(processedFile);
+
+      // Step 4: Update avatar — reflects on both admin and user site
+      setAvatar(res.data.url);
+      setAvatarStatus('success');
+    } catch (error) {
+      console.error('Avatar processing failed:', error);
+      setAvatarStatus('error');
+    } finally {
+      setBgRemoving(false);
+      setAvatarUploading(false);
+      setBgProgress(0);
+      // Reset input so same file can be re-selected
+      if (avatarInputRef.current) avatarInputRef.current.value = '';
+      setTimeout(() => setAvatarStatus(''), 4000);
+    }
+  };
 
   return (
     <div>
@@ -107,11 +138,7 @@ export default function Profile() {
                     key={avatar}
                     src={`${BASE}${avatar}`}
                     alt="Avatar"
-                    style={{
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'cover'
-                    }}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   />
                 ) : (
                   <span style={{ fontSize: 36 }}>🧑‍💻</span>
@@ -154,8 +181,28 @@ export default function Profile() {
                 }}
               >
                 <FiUpload />
-                {bgRemoving ? 'Removing background…' : avatarUploading ? 'Uploading…' : avatar ? 'Change Photo' : 'Upload Photo'}
+                {bgRemoving
+                  ? `Removing background… ${bgProgress > 0 ? bgProgress + '%' : ''}`
+                  : avatarUploading
+                  ? 'Uploading…'
+                  : avatar
+                  ? 'Change Photo'
+                  : 'Upload Photo'}
               </motion.button>
+
+              {/* Progress bar during bg removal */}
+              {bgRemoving && bgProgress > 0 && (
+                <div style={{ marginTop: 8, background: '#0a0a0f', borderRadius: 6, overflow: 'hidden', height: 4 }}>
+                  <div style={{
+                    height: '100%',
+                    width: `${bgProgress}%`,
+                    background: 'linear-gradient(90deg, #6c63ff, #ff6584)',
+                    transition: 'width 0.3s ease',
+                    borderRadius: 6,
+                  }} />
+                </div>
+              )}
+
               <p style={{ color: '#a0a0b0', fontSize: 12, marginTop: 8 }}>
                 Background is removed automatically before saving.
               </p>
@@ -297,8 +344,7 @@ export default function Profile() {
           </div>
 
           <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-
-            {/* Experience — years + months */}
+            {/* Experience */}
             <div>
               <label style={{ color: '#a0a0b0', fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1, display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
                 <span style={{ color: '#6c63ff' }}><FiTrendingUp /></span> Experience
@@ -306,9 +352,7 @@ export default function Profile() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
                 <div>
                   <label style={{ color: '#a0a0b0', fontSize: 11, marginBottom: 6, display: 'block' }}>Years</label>
-                  <input
-                    type="number" min={0} max={50}
-                    value={form.expYears}
+                  <input type="number" min={0} max={50} value={form.expYears}
                     onChange={e => setForm({ ...form, expYears: Number(e.target.value), yearsExperience: Number(e.target.value) })}
                     style={{ width: '100%', boxSizing: 'border-box', background: '#0a0a0f', border: '1px solid #2a2a3e', borderRadius: 12, padding: '13px 16px', color: '#fff', fontSize: 15, outline: 'none', fontFamily: 'inherit' }}
                     onFocus={e => (e.target.style.borderColor = '#6c63ff')}
@@ -317,9 +361,7 @@ export default function Profile() {
                 </div>
                 <div>
                   <label style={{ color: '#a0a0b0', fontSize: 11, marginBottom: 6, display: 'block' }}>Months (0–11)</label>
-                  <input
-                    type="number" min={0} max={11}
-                    value={form.expMonths}
+                  <input type="number" min={0} max={11} value={form.expMonths}
                     onChange={e => setForm({ ...form, expMonths: Math.min(11, Number(e.target.value)) })}
                     style={{ width: '100%', boxSizing: 'border-box', background: '#0a0a0f', border: '1px solid #2a2a3e', borderRadius: 12, padding: '13px 16px', color: '#fff', fontSize: 15, outline: 'none', fontFamily: 'inherit' }}
                     onFocus={e => (e.target.style.borderColor = '#6c63ff')}
@@ -328,9 +370,7 @@ export default function Profile() {
                 </div>
                 <div>
                   <label style={{ color: '#a0a0b0', fontSize: 11, marginBottom: 6, display: 'block' }}>Days (0–30)</label>
-                  <input
-                    type="number" min={0} max={30}
-                    value={form.expDays}
+                  <input type="number" min={0} max={30} value={form.expDays}
                     onChange={e => setForm({ ...form, expDays: Math.min(30, Number(e.target.value)) })}
                     style={{ width: '100%', boxSizing: 'border-box', background: '#0a0a0f', border: '1px solid #2a2a3e', borderRadius: 12, padding: '13px 16px', color: '#fff', fontSize: 15, outline: 'none', fontFamily: 'inherit' }}
                     onFocus={e => (e.target.style.borderColor = '#6c63ff')}
@@ -354,9 +394,7 @@ export default function Profile() {
               <label style={{ color: '#a0a0b0', fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1, display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
                 <span style={{ color: '#6c63ff' }}><FiSmile /></span> Happy Clients
               </label>
-              <input
-                type="number" min={0}
-                value={form.happyClients}
+              <input type="number" min={0} value={form.happyClients}
                 onChange={e => setForm({ ...form, happyClients: Number(e.target.value) })}
                 style={{ width: '100%', boxSizing: 'border-box', background: '#0a0a0f', border: '1px solid #2a2a3e', borderRadius: 12, padding: '13px 16px', color: '#fff', fontSize: 15, outline: 'none', fontFamily: 'inherit' }}
                 onFocus={e => (e.target.style.borderColor = '#6c63ff')}
@@ -369,9 +407,7 @@ export default function Profile() {
               <label style={{ color: '#a0a0b0', fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1, display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
                 <span style={{ color: '#6c63ff' }}><FiAward /></span> Awards Won
               </label>
-              <input
-                type="number" min={0}
-                value={form.awardsWon}
+              <input type="number" min={0} value={form.awardsWon}
                 onChange={e => setForm({ ...form, awardsWon: Number(e.target.value) })}
                 style={{ width: '100%', boxSizing: 'border-box', background: '#0a0a0f', border: '1px solid #2a2a3e', borderRadius: 12, padding: '13px 16px', color: '#fff', fontSize: 15, outline: 'none', fontFamily: 'inherit' }}
                 onFocus={e => (e.target.style.borderColor = '#6c63ff')}
@@ -381,6 +417,7 @@ export default function Profile() {
 
             {status === 'success' && <div style={{ background: '#43e97b20', border: '1px solid #43e97b40', borderRadius: 10, padding: '10px 14px', color: '#43e97b', fontSize: 14 }}>✅ Stats updated!</div>}
             {status === 'error' && <div style={{ background: '#ff658420', border: '1px solid #ff658440', borderRadius: 10, padding: '10px 14px', color: '#ff6584', fontSize: 14 }}>❌ Failed to save.</div>}
+
             <motion.button type="submit" disabled={loading} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
               style={{ background: 'linear-gradient(135deg,#6c63ff,#ff6584)', border: 'none', borderRadius: 12, padding: '14px', color: '#fff', fontSize: 15, fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
               <FiSave /> {loading ? 'Saving...' : 'Save Stats'}
