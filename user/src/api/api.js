@@ -22,7 +22,11 @@ export const login = (data) => API.post("/auth/login", data);
 export const getProjects = () => API.get("/projects");
 export const getSkills = () => API.get("/skills");
 export const getProfile = () => API.get("/profile");
+
 export const getCompliments = () => API.get("/compliments");
+
+export const sendCompliment = (data) =>
+  API.post("/compliments", data);
 
 export const sendMessage = (data) =>
   API.post("/messages", data);
