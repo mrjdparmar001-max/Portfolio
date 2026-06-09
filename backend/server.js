@@ -4,8 +4,13 @@ const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const dns = require("dns");
+const path = require("path");
 
 const app = express();
+app.use(
+  "/uploads",
+  express.static(path.join(__dirname, "uploads"))
+);
 
 dns.setDefaultResultOrder("ipv4first");
 dns.setServers(["8.8.8.8", "1.1.1.1"]);
