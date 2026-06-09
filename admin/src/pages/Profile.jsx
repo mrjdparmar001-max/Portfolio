@@ -10,7 +10,7 @@ const fields = [
   { key: 'location', label: 'Location', icon: <FiMapPin />, type: 'text', placeholder: 'City, Country' },
 ];
 
-const BASE = 'http://https://portfolio-w9xn.onrender.com';
+const BASE = import.meta.env.VITE_API_URL;
 
 export default function Profile() {
   const [form, setForm] = useState({ email: '', phone: '', location: '', github: '', linkedin: '', twitter: '', yearsExperience: 3, expYears: 3, expMonths: 0, expDays: 0, happyClients: 20, awardsWon: 5 });
@@ -30,7 +30,7 @@ export default function Profile() {
       setForm({ email: r.data.email, phone: r.data.phone, location: r.data.location, github: r.data.github || '', linkedin: r.data.linkedin || '', twitter: r.data.twitter || '', yearsExperience: r.data.yearsExperience ?? 3, expYears: r.data.expYears ?? r.data.yearsExperience ?? 3, expMonths: r.data.expMonths ?? 0, expDays: r.data.expDays ?? 0, happyClients: r.data.happyClients ?? 20, awardsWon: r.data.awardsWon ?? 5 });
       setResume(r.data.resume || '');
       setAvatar(r.data.avatar || '');
-    }).catch(() => {});
+    }).catch(() => { });
   }, []);
 
   const handleSave = async (e) => {
@@ -76,7 +76,13 @@ export default function Profile() {
       setAvatarUploading(true);
       const pngFile = new File([blob], 'avatar.png', { type: 'image/png' });
       const res = await uploadAvatar(pngFile);
+
       setAvatar(res.data.url);
+
+      const profile = await getProfile();
+
+      setForm(profile.data);
+      setAvatar(profile.data.avatar);
       setAvatarStatus('success');
     } catch {
       setBgRemoving(false);
@@ -137,7 +143,7 @@ export default function Profile() {
               <input ref={avatarInputRef} type="file" accept="image/*" onChange={handleAvatarUpload} style={{ display: 'none' }} />
             </div>
 
-          <div style={{ flex: 1 }}>
+            <div style={{ flex: 1 }}>
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
@@ -233,10 +239,10 @@ export default function Profile() {
           <p style={{ color: '#a0a0b0', fontSize: 13, marginBottom: 24 }}>These links power the icons in the Hero and Footer sections.</p>
           <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             {[
-              { key: 'github',   label: 'GitHub URL',   icon: <FiGithub />,   placeholder: 'https://github.com/yourusername' },
+              { key: 'github', label: 'GitHub URL', icon: <FiGithub />, placeholder: 'https://github.com/yourusername' },
               { key: 'linkedin', label: 'LinkedIn URL', icon: <FiLinkedin />, placeholder: 'https://linkedin.com/in/yourusername' },
-              { key: 'twitter',  label: 'Twitter / X URL', icon: <FiTwitter />,  placeholder: 'https://twitter.com/yourusername' },
-              { key: 'email',    label: 'Email',        icon: <FiMail />,     placeholder: 'you@example.com', type: 'email' },
+              { key: 'twitter', label: 'Twitter / X URL', icon: <FiTwitter />, placeholder: 'https://twitter.com/yourusername' },
+              { key: 'email', label: 'Email', icon: <FiMail />, placeholder: 'you@example.com', type: 'email' },
             ].map(({ key, label, icon, placeholder, type = 'url' }) => (
               <div key={key}>
                 <label style={{ color: '#a0a0b0', fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1, display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
@@ -276,14 +282,14 @@ export default function Profile() {
               {
                 icon: <FiTrendingUp />, label: 'Experience',
                 value: [
-                  form.expYears  > 0 ? `${form.expYears}y`  : '',
+                  form.expYears > 0 ? `${form.expYears}y` : '',
                   form.expMonths > 0 ? `${form.expMonths}m` : '',
-                  form.expDays   > 0 ? `${form.expDays}d`   : '',
+                  form.expDays > 0 ? `${form.expDays}d` : '',
                 ].filter(Boolean).join(' ') || '0d',
                 suffix: '+',
               },
               { icon: <FiSmile />, label: 'Happy Clients', value: form.happyClients, suffix: '+' },
-              { icon: <FiAward />, label: 'Awards Won',    value: form.awardsWon,    suffix: '+' },
+              { icon: <FiAward />, label: 'Awards Won', value: form.awardsWon, suffix: '+' },
             ].map(({ icon, label, value, suffix }) => (
               <div key={label} style={{ background: '#0a0a0f', border: '1px solid #2a2a3e', borderRadius: 14, padding: '16px 8px', textAlign: 'center' }}>
                 <div style={{ color: '#6c63ff', fontSize: 20, marginBottom: 6, display: 'flex', justifyContent: 'center' }}>{icon}</div>
@@ -340,9 +346,9 @@ export default function Profile() {
               <p style={{ color: '#a0a0b0', fontSize: 11, marginTop: 6 }}>
                 Preview: <strong style={{ color: '#6c63ff' }}>
                   {[
-                    form.expYears  > 0 ? `${form.expYears} year${form.expYears !== 1 ? 's' : ''}`   : '',
+                    form.expYears > 0 ? `${form.expYears} year${form.expYears !== 1 ? 's' : ''}` : '',
                     form.expMonths > 0 ? `${form.expMonths} month${form.expMonths !== 1 ? 's' : ''}` : '',
-                    form.expDays   > 0 ? `${form.expDays} day${form.expDays !== 1 ? 's' : ''}`       : '',
+                    form.expDays > 0 ? `${form.expDays} day${form.expDays !== 1 ? 's' : ''}` : '',
                   ].filter(Boolean).join(' ') || '0 days'}+
                 </strong>
               </p>
@@ -379,7 +385,7 @@ export default function Profile() {
             </div>
 
             {status === 'success' && <div style={{ background: '#43e97b20', border: '1px solid #43e97b40', borderRadius: 10, padding: '10px 14px', color: '#43e97b', fontSize: 14 }}>✅ Stats updated!</div>}
-            {status === 'error'   && <div style={{ background: '#ff658420', border: '1px solid #ff658440', borderRadius: 10, padding: '10px 14px', color: '#ff6584', fontSize: 14 }}>❌ Failed to save.</div>}
+            {status === 'error' && <div style={{ background: '#ff658420', border: '1px solid #ff658440', borderRadius: 10, padding: '10px 14px', color: '#ff6584', fontSize: 14 }}>❌ Failed to save.</div>}
             <motion.button type="submit" disabled={loading} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
               style={{ background: 'linear-gradient(135deg,#6c63ff,#ff6584)', border: 'none', borderRadius: 12, padding: '14px', color: '#fff', fontSize: 15, fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
               <FiSave /> {loading ? 'Saving...' : 'Save Stats'}
