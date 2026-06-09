@@ -61,48 +61,22 @@ export default function Profile() {
     setTimeout(() => setResumeStatus(''), 4000);
   };
 
-  const handleAvatarUpload = async (e) => {
+ const handleAvatarUpload = async (e) => {
   const file = e.target.files[0];
-
-  console.log("Selected File:", file);
-
   if (!file) return;
 
   try {
-    setBgRemoving(true);
+    setAvatarUploading(true);
 
-    console.log("Removing Background...");
-
-    const blob = await removeBackground(file, {
-      output: {
-        format: "image/png",
-        quality: 1,
-      },
-    });
-
-    console.log("Background Removed:", blob);
-
-    setBgRemoving(false);
-
-    const pngFile = new File(
-      [blob],
-      "avatar.png",
-      { type: "image/png" }
-    );
-
-    console.log("Uploading Avatar...");
-
-    const res = await uploadAvatar(pngFile);
-
-    console.log("Upload Response:", res.data);
+    const res = await uploadAvatar(file);
 
     setAvatar(res.data.url);
     setAvatarStatus("success");
-
   } catch (error) {
-    console.error("Avatar Upload Error:", error);
-    setBgRemoving(false);
+    console.error(error);
     setAvatarStatus("error");
+  } finally {
+    setAvatarUploading(false);
   }
 };
 
