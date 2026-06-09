@@ -3,9 +3,8 @@ import axios from 'axios';
 // Environment Variable
 const BASE = import.meta.env.VITE_API_URL;
 
-// Axios Instance
 const API = axios.create({
-  baseURL: BASE,
+  baseURL: `${BASE}/api`,
 });
 
 // Attach JWT Token Automatically
