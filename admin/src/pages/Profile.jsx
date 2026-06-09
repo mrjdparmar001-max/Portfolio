@@ -62,37 +62,49 @@ export default function Profile() {
   };
 
   const handleAvatarUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    try {
-      // Step 1: remove background in browser
-      setBgRemoving(true);
-      const blob = await removeBackground(file, {
-        output: { format: 'image/png', quality: 1 },
-      });
-      setBgRemoving(false);
+  const file = e.target.files[0];
 
-      // Step 2: upload the clean PNG
-      setAvatarUploading(true);
-      const pngFile = new File([blob], 'avatar.png', { type: 'image/png' });
-      const res = await uploadAvatar(pngFile);
+  console.log("Selected File:", file);
 
-      setAvatar(res.data.url);
+  if (!file) return;
 
-      const profile = await getProfile();
+  try {
+    setBgRemoving(true);
 
-      setForm(profile.data);
-      setAvatar(profile.data.avatar);
-      setAvatarStatus('success');
-    } catch {
-      setBgRemoving(false);
-      setAvatarStatus('error');
-    }
-    setAvatarUploading(false);
-    // reset input so same file can be re-selected
-    e.target.value = '';
-    setTimeout(() => setAvatarStatus(''), 5000);
-  };
+    console.log("Removing Background...");
+
+    const blob = await removeBackground(file, {
+      output: {
+        format: "image/png",
+        quality: 1,
+      },
+    });
+
+    console.log("Background Removed:", blob);
+
+    setBgRemoving(false);
+
+    const pngFile = new File(
+      [blob],
+      "avatar.png",
+      { type: "image/png" }
+    );
+
+    console.log("Uploading Avatar...");
+
+    const res = await uploadAvatar(pngFile);
+
+    console.log("Upload Response:", res.data);
+
+    setAvatar(res.data.url);
+    setAvatarStatus("success");
+
+  } catch (error) {
+    console.error("Avatar Upload Error:", error);
+    setBgRemoving(false);
+    setAvatarStatus("error");
+  }
+};
 
   return (
     <div>
