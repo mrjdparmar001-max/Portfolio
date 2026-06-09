@@ -117,7 +117,16 @@ export default function Profile() {
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>
                 {avatar ? (
-                  <img src={BASE + avatar} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <img
+                    key={avatar}
+                    src={`${BASE}${avatar}`}
+                    alt="Avatar"
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover'
+                    }}
+                  />
                 ) : (
                   <span style={{ fontSize: 36 }}>🧑‍💻</span>
                 )}
