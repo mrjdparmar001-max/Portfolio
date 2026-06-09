@@ -1,43 +1,30 @@
 import axios from "axios";
 
-// Axios Instance
 const API = axios.create({
-  baseURL: import.meta.env.VITE_API_URL,
+  baseURL: `${import.meta.env.VITE_API_URL}/api`,
   headers: {
     "Content-Type": "application/json",
   },
 });
 
-/* ==========================
-   PROFILE
-========================== */
-export const getProfile = () => API.get("/profile");
+API.interceptors.request.use((config) => {
+  const token = localStorage.getItem("admin-token");
 
-/* ==========================
-   PROJECTS
-========================== */
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+
+  return config;
+});
+
+export const login = (data) => API.post("/auth/login", data);
+
 export const getProjects = () => API.get("/projects");
-
-/* ==========================
-   SKILLS
-========================== */
 export const getSkills = () => API.get("/skills");
-
-/* ==========================
-   COMPLIMENTS
-========================== */
+export const getProfile = () => API.get("/profile");
 export const getCompliments = () => API.get("/compliments");
 
-export const sendCompliment = (data) =>
-  API.post("/compliments", data);
-
-/* ==========================
-   MESSAGES
-========================== */
 export const sendMessage = (data) =>
   API.post("/messages", data);
 
-/* ==========================
-   EXPORT
-========================== */
 export default API;
