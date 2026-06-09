@@ -219,7 +219,7 @@ const avatarH = tier === 'desktop' ? 520 : 420;
     inset: 0,
     zIndex: 2,
   }}
-/>F
+/>
       </motion.div>
 
       {/* Tech badges */}
