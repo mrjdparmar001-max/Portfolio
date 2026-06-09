@@ -23,10 +23,15 @@ app.use(
 app.use(express.json());
 
 // Routes
+// Routes
 app.use("/api/auth", require("./routes/auth"));
 app.use("/api/projects", require("./routes/projects"));
 app.use("/api/messages", require("./routes/messages"));
 app.use("/api/compliments", require("./routes/compliments"));
+
+app.use("/api/profile", require("./routes/profile"));
+app.use("/api/skills", require("./routes/skills"));
+app.use("/api/upload", require("./routes/upload"));
 
 // Health Check
 app.get("/", (req, res) => {
