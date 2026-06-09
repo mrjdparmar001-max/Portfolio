@@ -14,7 +14,7 @@ function assetUrl(path) {
   return `${BASE}/${path.replace(/^\//, '')}`;
 }
 
-const PARTICLE_DATA = Array.from({ length: 10 }, (_, i) => ({
+const PARTICLE_DATA = Array.from({ length: 5 }, (_, i) => ({
   size: 3 + (i % 4) * 1.5,
   startX: (i * 137.5) % 100,
   duration: 8 + (i % 5) * 2.4,
@@ -94,7 +94,7 @@ function Avatar3D({ theme, avatarSrc, avatarRef, x, y, rotateX, rotateY, badgesV
   }, []);
 
   const orbitDots = useMemo(() => [
-    { color: theme.primary,   size: 6, orbitSize: 400, duration: 10 },
+    { color: theme.primary, size: 6, orbitSize: 400, duration: 10 },
     { color: theme.secondary, size: 8, orbitSize: 360, duration: 13 },
   ], [theme.primary, theme.secondary]);
 
@@ -105,23 +105,23 @@ function Avatar3D({ theme, avatarSrc, avatarRef, x, y, rotateX, rotateY, badgesV
   const techBadges =
     tier === 'desktop'
       ? [
-          { label: 'React',   icon: '⚛️', style: { left: -88,  top: '18%' },                        delay: 1.2 },
-          { label: 'Node.js', icon: '🟢', style: { right: -96, top: '22%' },                        delay: 1.5 },
-          { label: 'MERN',    icon: '🛢️', style: { left: -72,  top: '62%' },                        delay: 1.8 },
-          { label: 'UI/UX',   icon: '🎨', style: { right: -80, top: '58%' },                        delay: 2.1 },
-        ]
+        { label: 'React', icon: '⚛️', style: { left: -88, top: '18%' }, delay: 1.2 },
+        { label: 'Node.js', icon: '🟢', style: { right: -96, top: '22%' }, delay: 1.5 },
+        { label: 'MERN', icon: '🛢️', style: { left: -72, top: '62%' }, delay: 1.8 },
+        { label: 'UI/UX', icon: '🎨', style: { right: -80, top: '58%' }, delay: 2.1 },
+      ]
       : tier === 'tablet'
-      ? [
-          { label: 'React',   icon: '⚛️', style: { left: -70,  top: '18%' },                        delay: 1.2 },
-          { label: 'Node.js', icon: '🟢', style: { right: -76, top: '22%' },                        delay: 1.5 },
-          { label: 'MERN',    icon: '🛢️', style: { left: -58,  top: '62%' },                        delay: 1.8 },
-          { label: 'UI/UX',   icon: '🎨', style: { right: -64, top: '58%' },                        delay: 2.1 },
+        ? [
+          { label: 'React', icon: '⚛️', style: { left: -70, top: '18%' }, delay: 1.2 },
+          { label: 'Node.js', icon: '🟢', style: { right: -76, top: '22%' }, delay: 1.5 },
+          { label: 'MERN', icon: '🛢️', style: { left: -58, top: '62%' }, delay: 1.8 },
+          { label: 'UI/UX', icon: '🎨', style: { right: -64, top: '58%' }, delay: 2.1 },
         ]
-      : /* mobile */ [
-          { label: 'React',   icon: '⚛️', style: { left: 0,  top: '-40px' },                        delay: 1.2 },
-          { label: 'Node.js', icon: '🟢', style: { right: 0, top: '-40px' },                        delay: 1.5 },
-          { label: 'MERN',    icon: '🛢️', style: { left: 0,  top: 'unset', bottom: '-40px' },       delay: 1.8 },
-          { label: 'UI/UX',   icon: '🎨', style: { right: 0, top: 'unset', bottom: '-40px' },       delay: 2.1 },
+        : /* mobile */[
+          { label: 'React', icon: '⚛️', style: { left: 0, top: '-40px' }, delay: 1.2 },
+          { label: 'Node.js', icon: '🟢', style: { right: 0, top: '-40px' }, delay: 1.5 },
+          { label: 'MERN', icon: '🛢️', style: { left: 0, top: 'unset', bottom: '-40px' }, delay: 1.8 },
+          { label: 'UI/UX', icon: '🎨', style: { right: 0, top: 'unset', bottom: '-40px' }, delay: 2.1 },
         ];
 
   // Avatar box size per tier
@@ -143,11 +143,11 @@ function Avatar3D({ theme, avatarSrc, avatarRef, x, y, rotateX, rotateY, badgesV
         width: avatarW,
         height: avatarH,
         overflow: 'visible',
-        marginTop:    tier === 'mobile' ? 44 : 0,
+        marginTop: tier === 'mobile' ? 44 : 0,
         marginBottom: tier === 'mobile' ? 100 : 0,
       }}
     >
-      <HoloRing theme={theme} size={400} opacity={0.25} delay={0}   rotateDir={1}  />
+      <HoloRing theme={theme} size={400} opacity={0.25} delay={0} rotateDir={1} />
       <HoloRing theme={theme} size={340} opacity={0.12} delay={1.5} rotateDir={-1} />
 
       {orbitDots.map((dot, i) => (
@@ -200,14 +200,17 @@ function Avatar3D({ theme, avatarSrc, avatarRef, x, y, rotateX, rotateY, badgesV
         </AnimatePresence>
 
         <motion.img
-          ref={imgRef} key={avatarSrc} src={avatarSrc} alt="Profile"
-          loading="eager" fetchpriority="high" decoding="async"
+          ref={imgRef}
+          key={avatarSrc}
+          src={avatarSrc}
+          alt="Profile"
+          loading="lazy"
+          decoding="async"
           onLoad={() => setImgLoaded(true)}
-          onError={e => { e.currentTarget.src = FALLBACK_AVATAR; setImgLoaded(true); }}
-          animate={{ opacity: imgLoaded ? 1 : 0 }}
-          transition={{ duration: 0.4 }}
-          whileHover={{ scale: 1.04 }}
-          style={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'bottom center', display: 'block', background: 'none', filter: `drop-shadow(0 20px 60px ${theme.primary}50) drop-shadow(0 0 30px ${theme.secondary}30)`, transform: 'translateZ(30px)', position: 'relative', zIndex: 2 }}
+          onError={(e) => {
+            e.currentTarget.src = FALLBACK_AVATAR;
+            setImgLoaded(true);
+          }}
         />
       </motion.div>
 
@@ -262,18 +265,18 @@ function useMediaQuery(query) {
 // ─── Main Hero ────────────────────────────────────────────────────────────────
 export default function Hero() {
   const { theme } = useTheme();
-  const [resumePath, setResumePath]   = useState('');
-  const [avatarPath, setAvatarPath]   = useState('');
-  const [socials, setSocials]         = useState({ github: '', linkedin: '', twitter: '', email: '' });
+  const [resumePath, setResumePath] = useState('');
+  const [avatarPath, setAvatarPath] = useState('');
+  const [socials, setSocials] = useState({ github: '', linkedin: '', twitter: '', email: '' });
   const [badgesVisible, setBadgesVisible] = useState(false);
 
   // ── 3-tier breakpoints ────────────────────────────────────────────────────
-  const isTabletUp  = useMediaQuery('(min-width: 768px)');   // tablet + desktop
+  const isTabletUp = useMediaQuery('(min-width: 768px)');   // tablet + desktop
   const isDesktopUp = useMediaQuery('(min-width: 1024px)');  // desktop only
   // tier: 'mobile' | 'tablet' | 'desktop'
   const tier = isDesktopUp ? 'desktop' : isTabletUp ? 'tablet' : 'mobile';
 
-  const avatarSrc  = avatarPath ? assetUrl(avatarPath) : FALLBACK_AVATAR;
+  const avatarSrc = avatarPath ? assetUrl(avatarPath) : FALLBACK_AVATAR;
   const resumeHref = resumePath ? assetUrl(resumePath) : '';
 
   const avatarRef = useRef(null);
@@ -283,18 +286,14 @@ export default function Hero() {
   const rotateY = useSpring(useTransform(x, [-80, 80], [-15, 15]), { stiffness: 120, damping: 22 });
 
   useEffect(() => {
-    if (!avatarSrc) return;
-    const img = new Image();
-    img.src = avatarSrc;
-    img.onload  = () => setBadgesVisible(true);
-    img.onerror = () => setBadgesVisible(true);
-  }, [avatarSrc]);
+    setBadgesVisible(true);
+  }, []);
 
   const handleMouseMove = useCallback((e) => {
     const rect = avatarRef.current?.getBoundingClientRect();
     if (!rect) return;
     x.set(e.clientX - rect.left - rect.width / 2);
-    y.set(e.clientY - rect.top  - rect.height / 2);
+    y.set(e.clientY - rect.top - rect.height / 2);
   }, [x, y]);
 
   const handleMouseLeave = useCallback(() => { x.set(0); y.set(0); }, [x, y]);
@@ -306,20 +305,20 @@ export default function Hero() {
         setAvatarPath(r.data.avatar || '');
         setSocials({ github: r.data.github || '', linkedin: r.data.linkedin || '', twitter: r.data.twitter || '', email: r.data.email || '' });
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   const socialList = useMemo(() => [
-    { icon: <FiGithub />,   href: socials.github,            show: !!socials.github,   color: '#e2e8f0' },
-    { icon: <FiLinkedin />, href: socials.linkedin,          show: !!socials.linkedin, color: '#0a66c2' },
-    { icon: <FiTwitter />,  href: socials.twitter,           show: !!socials.twitter,  color: '#1d9bf0' },
-    { icon: <FiMail />,     href: `mailto:${socials.email}`, show: !!socials.email,    color: '#ef4444' },
+    { icon: <FiGithub />, href: socials.github, show: !!socials.github, color: '#e2e8f0' },
+    { icon: <FiLinkedin />, href: socials.linkedin, show: !!socials.linkedin, color: '#0a66c2' },
+    { icon: <FiTwitter />, href: socials.twitter, show: !!socials.twitter, color: '#1d9bf0' },
+    { icon: <FiMail />, href: `mailto:${socials.email}`, show: !!socials.email, color: '#ef4444' },
   ].filter(s => s.show), [socials]);
 
   const blobs = useMemo(() => [
-    { w: 600, h: 600, top: '-15%', left: '55%', color: theme.primary   + '12', duration: 18 },
-    { w: 500, h: 500, top: '35%',  left: '-8%', color: theme.secondary + '0e', duration: 22 },
-    { w: 450, h: 450, top: '55%',  left: '65%', color: theme.accent    + '0a', duration: 25 },
+    { w: 600, h: 600, top: '-15%', left: '55%', color: theme.primary + '12', duration: 18 },
+    { w: 500, h: 500, top: '35%', left: '-8%', color: theme.secondary + '0e', duration: 22 },
+    { w: 450, h: 450, top: '55%', left: '65%', color: theme.accent + '0a', duration: 25 },
   ], [theme.primary, theme.secondary, theme.accent]);
 
   // ── Layout values per tier ────────────────────────────────────────────────
@@ -331,17 +330,17 @@ export default function Hero() {
     sectionPadding: isMobile
       ? '100px 5% 60px'
       : isTablet
-      ? '80px 4% 80px'
-      : '80px 5% 40px',
+        ? '80px 4% 80px'
+        : '80px 5% 40px',
 
-    outerFlex:  isMobile ? 'column' : 'row',
+    outerFlex: isMobile ? 'column' : 'row',
     outerAlign: 'center',
-    outerGap:   isMobile ? 40 : isTablet ? 24 : 60,
+    outerGap: isMobile ? 40 : isTablet ? 24 : 60,
 
-    textAlign:   isMobile ? 'center' : 'left',
+    textAlign: isMobile ? 'center' : 'left',
     textJustify: isMobile ? 'center' : 'flex-start',
-    nameFlex:    isMobile ? 'center' : 'flex-start',
-    bioMargin:   isMobile ? '0 auto 28px' : '0 0 28px',
+    nameFlex: isMobile ? 'center' : 'flex-start',
+    bioMargin: isMobile ? '0 auto 28px' : '0 0 28px',
 
     avatarMargin: isMobile ? '0 auto' : '0',
 
@@ -377,7 +376,7 @@ export default function Hero() {
           <motion.div key={i}
             animate={{ x: [0, 60, -30, 0], y: [0, -40, 30, 0], scale: [1, 1.1, 0.95, 1] }}
             transition={{ duration: b.duration, repeat: Infinity, ease: 'easeInOut' }}
-            style={{ position: 'absolute', borderRadius: '50%', filter: 'blur(90px)', width: b.w, height: b.h, background: b.color, top: b.top, left: b.left, willChange: 'transform' }}
+            style={{ position: 'absolute', borderRadius: '50%', filter: 'blur(40px)', width: b.w, height: b.h, background: b.color, top: b.top, left: b.left, willChange: 'transform' }}
           />
         ))}
       </div>
@@ -397,7 +396,7 @@ export default function Hero() {
         position: 'relative',
         zIndex: 1,
         // on tablet give horizontal padding so side-floating badges stay on-screen
-        paddingLeft:  isTablet ? layout.avatarPaddingX : 0,
+        paddingLeft: isTablet ? layout.avatarPaddingX : 0,
         paddingRight: isTablet ? layout.avatarPaddingX : 0,
         boxSizing: 'border-box',
       }}>
