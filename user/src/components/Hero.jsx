@@ -125,9 +125,8 @@ function Avatar3D({ theme, avatarSrc, avatarRef, x, y, rotateX, rotateY, badgesV
         ];
 
   // Avatar box size per tier
-  const avatarW = tier === 'desktop' ? 340 : tier === 'tablet' ? 280 : 240;
-  const avatarH = tier === 'desktop' ? 440 : tier === 'tablet' ? 380 : 320;
-
+ const avatarW = tier === 'desktop' ? 420 : 320;
+const avatarH = tier === 'desktop' ? 520 : 420;
   // "Available for work" bottom offset per tier
   const availBottom = tier === 'mobile' ? -86 : -10;
 
@@ -200,18 +199,27 @@ function Avatar3D({ theme, avatarSrc, avatarRef, x, y, rotateX, rotateY, badgesV
         </AnimatePresence>
 
         <motion.img
-          ref={imgRef}
-          key={avatarSrc}
-          src={avatarSrc}
-          alt="Profile"
-          loading="lazy"
-          decoding="async"
-          onLoad={() => setImgLoaded(true)}
-          onError={(e) => {
-            e.currentTarget.src = FALLBACK_AVATAR;
-            setImgLoaded(true);
-          }}
-        />
+  ref={imgRef}
+  key={avatarSrc}
+  src={avatarSrc}
+  alt="Profile"
+  loading="lazy"
+  decoding="async"
+  onLoad={() => setImgLoaded(true)}
+  onError={(e) => {
+    e.currentTarget.src = FALLBACK_AVATAR;
+    setImgLoaded(true);
+  }}
+  style={{
+    width: "100%",
+    height: "100%",
+    objectFit: "contain",
+    objectPosition: "50% 20%",
+    position: "absolute",
+    inset: 0,
+    zIndex: 2,
+  }}
+/>F
       </motion.div>
 
       {/* Tech badges */}
