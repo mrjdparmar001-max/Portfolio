@@ -27,30 +27,44 @@ const ALL_Q = [
 ];
 
 const MODES = [
-  { id: "easy", label: "Easy", emoji: "🌱", time: 30, color: "#43e97b", desc: "30s per question" },
-  { id: "medium", label: "Medium", emoji: "⚡", time: 20, color: "#a78bfa", desc: "20s per question" },
-  { id: "hard", label: "Hard", emoji: "🔥", time: 12, color: "#f97316", desc: "12s per question" },
-  { id: "vhard", label: "Very Hard", emoji: "💀", time: 7, color: "#ff4040", desc: "7s per question" },
+  { id: "easy",   label: "Easy",      emoji: "🌱", time: 30, color: "#43e97b", desc: "30s per question" },
+  { id: "medium", label: "Medium",    emoji: "⚡", time: 20, color: "#a78bfa", desc: "20s per question" },
+  { id: "hard",   label: "Hard",      emoji: "🔥", time: 12, color: "#f97316", desc: "12s per question" },
+  { id: "vhard",  label: "Very Hard", emoji: "💀", time: 7,  color: "#ff4040", desc: "7s per question" },
 ];
 
-const CAT_CLR = { JavaScript: "#f7df1e", React: "#61dafb", CSS: "#60a5fa", "Node.js": "#68a063", MongoDB: "#4db33d", "🧩 Puzzle": "#f472b6" };
+const CAT_CLR = {
+  JavaScript: "#f7df1e", React: "#61dafb", CSS: "#60a5fa",
+  "Node.js": "#68a063", MongoDB: "#4db33d", "🧩 Puzzle": "#f472b6",
+};
 
 const OUTFITS = [
-  { name: "Dev Purple", j: "#7c3aed", jd: "#5b21b6", sh: "#f472b6", p: "#1e1b4b", pd: "#312e81", sw: "#f8fafc", sa: "#7c3aed" },
-  { name: "Hacker Green", j: "#065f46", jd: "#064e3b", sh: "#6ee7b7", p: "#111827", pd: "#0f172a", sw: "#1f2937", sa: "#10b981" },
+  { name: "Dev Purple",  j: "#7c3aed", jd: "#5b21b6", sh: "#f472b6", p: "#1e1b4b", pd: "#312e81", sw: "#f8fafc", sa: "#7c3aed" },
+  { name: "Hacker Green",j: "#065f46", jd: "#064e3b", sh: "#6ee7b7", p: "#111827", pd: "#0f172a", sw: "#1f2937", sa: "#10b981" },
   { name: "Retro Amber", j: "#b45309", jd: "#92400e", sh: "#fde68a", p: "#78350f", pd: "#451a03", sw: "#f59e0b", sa: "#b45309" },
-  { name: "Cyber Blue", j: "#0e7490", jd: "#0c4a6e", sh: "#67e8f9", p: "#0f172a", pd: "#020617", sw: "#e0f2fe", sa: "#0ea5e9" },
-  { name: "Pinky", j: "#be185d", jd: "#9d174d", sh: "#fbcfe8", p: "#500724", pd: "#4a044e", sw: "#fce7f3", sa: "#ec4899" },
+  { name: "Cyber Blue",  j: "#0e7490", jd: "#0c4a6e", sh: "#67e8f9", p: "#0f172a", pd: "#020617", sw: "#e0f2fe", sa: "#0ea5e9" },
+  { name: "Pinky",       j: "#be185d", jd: "#9d174d", sh: "#fbcfe8", p: "#500724", pd: "#4a044e", sw: "#fce7f3", sa: "#ec4899" },
 ];
 
 const TOTAL = 10;
 const OUTFIT_INTERVAL_MS = 3600 * 1000;
 
+// ─── Emotion durations (ms) ──────────────────────────────────────────────────
+// How long each reaction plays before settling into the "between questions" idle.
+const EMOTION_DURATION = {
+  correct: 1400,   // jump + cheer plays fully before next question
+  wrong:   1400,   // shake plays fully
+  skipped:  900,   // quick shrug
+};
+
 // ─── Security helpers ────────────────────────────────────────────────────────
 
 const _salt = Math.random().toString(36).slice(2);
-const _enc = (v) => btoa(_salt + JSON.stringify(v) + _salt);
-const _dec = (s) => { try { const r = atob(s); return JSON.parse(r.slice(_salt.length, r.length - _salt.length)); } catch { return null; } };
+const _enc  = (v) => btoa(_salt + JSON.stringify(v) + _salt);
+const _dec  = (s) => {
+  try { const r = atob(s); return JSON.parse(r.slice(_salt.length, r.length - _salt.length)); }
+  catch { return null; }
+};
 
 function secureShuffle(arr) {
   const a = [...arr];
@@ -61,14 +75,11 @@ function secureShuffle(arr) {
   return a;
 }
 
-// ─── Audio Engine (Web Audio API) ────────────────────────────────────────────
+// ─── Audio Engine ─────────────────────────────────────────────────────────────
 
 function createAudioEngine() {
-  let ctx = null;
-  let bgGain = null;
-  let bgNodes = [];
-  let bgPlaying = false;
-  let muted = false;
+  let ctx = null, bgGain = null, bgNodes = [], bgPlaying = false, muted = false;
+  let bgLoopTimer = null;
 
   function getCtx() {
     if (!ctx) {
@@ -87,52 +98,39 @@ function createAudioEngine() {
     const c = getCtx();
     bgNodes.forEach(n => { try { n.stop(); } catch { } });
     bgNodes = [];
-
     const notes = happy
       ? [261.63, 329.63, 392.00, 523.25, 392.00, 329.63]
       : [220.00, 261.63, 220.00, 196.00, 174.61, 196.00];
-
     const tempo = happy ? 0.38 : 0.55;
     let t = c.currentTime + 0.05;
-
     function scheduleLoop() {
       notes.forEach((freq, i) => {
-        const osc = c.createOscillator();
-        const g = c.createGain();
+        const osc = c.createOscillator(), g = c.createGain();
         osc.type = happy ? "triangle" : "sine";
         osc.frequency.value = freq;
         g.gain.setValueAtTime(0, t + i * tempo);
         g.gain.linearRampToValueAtTime(0.35, t + i * tempo + 0.04);
         g.gain.exponentialRampToValueAtTime(0.001, t + i * tempo + tempo * 0.85);
         osc.connect(g); g.connect(bgGain);
-        osc.start(t + i * tempo);
-        osc.stop(t + i * tempo + tempo);
+        osc.start(t + i * tempo); osc.stop(t + i * tempo + tempo);
         bgNodes.push(osc);
-
         if (i % 2 === 0) {
-          const bass = c.createOscillator();
-          const bg2 = c.createGain();
-          bass.type = "sine";
-          bass.frequency.value = freq / 2;
+          const bass = c.createOscillator(), bg2 = c.createGain();
+          bass.type = "sine"; bass.frequency.value = freq / 2;
           bg2.gain.setValueAtTime(0, t + i * tempo);
           bg2.gain.linearRampToValueAtTime(0.18, t + i * tempo + 0.06);
           bg2.gain.exponentialRampToValueAtTime(0.001, t + i * tempo + tempo * 0.9);
           bass.connect(bg2); bg2.connect(bgGain);
-          bass.start(t + i * tempo);
-          bass.stop(t + i * tempo + tempo);
+          bass.start(t + i * tempo); bass.stop(t + i * tempo + tempo);
           bgNodes.push(bass);
         }
       });
-
       const loopDuration = notes.length * tempo;
       t += loopDuration;
       bgLoopTimer = setTimeout(scheduleLoop, (loopDuration - 0.3) * 1000);
     }
-
     scheduleLoop();
   }
-
-  let bgLoopTimer = null;
 
   function stopBg() {
     bgPlaying = false;
@@ -141,14 +139,24 @@ function createAudioEngine() {
     bgNodes = [];
   }
 
+  function tone(freq, type, vol, attack, decay) {
+    if (muted) return;
+    const c = getCtx();
+    const osc = c.createOscillator(), g = c.createGain();
+    osc.type = type; osc.frequency.value = freq;
+    g.gain.setValueAtTime(0, c.currentTime);
+    g.gain.linearRampToValueAtTime(vol, c.currentTime + attack);
+    g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + decay);
+    osc.connect(g); g.connect(ctx.destination);
+    osc.start(); osc.stop(c.currentTime + decay + 0.01);
+  }
+
   function playCorrect() {
     if (muted) return;
     const c = getCtx();
     [523.25, 659.25, 783.99].forEach((freq, i) => {
-      const osc = c.createOscillator();
-      const g = c.createGain();
-      osc.type = "triangle";
-      osc.frequency.value = freq;
+      const osc = c.createOscillator(), g = c.createGain();
+      osc.type = "triangle"; osc.frequency.value = freq;
       const t = c.currentTime + i * 0.1;
       g.gain.setValueAtTime(0, t);
       g.gain.linearRampToValueAtTime(0.4, t + 0.03);
@@ -162,10 +170,8 @@ function createAudioEngine() {
     if (muted) return;
     const c = getCtx();
     [220, 196].forEach((freq, i) => {
-      const osc = c.createOscillator();
-      const g = c.createGain();
-      osc.type = "sawtooth";
-      osc.frequency.value = freq;
+      const osc = c.createOscillator(), g = c.createGain();
+      osc.type = "sawtooth"; osc.frequency.value = freq;
       const t = c.currentTime + i * 0.12;
       g.gain.setValueAtTime(0, t);
       g.gain.linearRampToValueAtTime(0.3, t + 0.04);
@@ -175,41 +181,15 @@ function createAudioEngine() {
     });
   }
 
-  function playTick() {
-    if (muted) return;
-    const c = getCtx();
-    const osc = c.createOscillator();
-    const g = c.createGain();
-    osc.type = "sine";
-    osc.frequency.value = 880;
-    g.gain.setValueAtTime(0.18, c.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.08);
-    osc.connect(g); g.connect(ctx.destination);
-    osc.start(); osc.stop(c.currentTime + 0.09);
-  }
-
-  function playUrgentTick() {
-    if (muted) return;
-    const c = getCtx();
-    const osc = c.createOscillator();
-    const g = c.createGain();
-    osc.type = "square";
-    osc.frequency.value = 1100;
-    g.gain.setValueAtTime(0.22, c.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.07);
-    osc.connect(g); g.connect(ctx.destination);
-    osc.start(); osc.stop(c.currentTime + 0.08);
-  }
+  function playTick()       { tone(880,  "sine",   0.18, 0.005, 0.08); }
+  function playUrgentTick() { tone(1100, "square", 0.22, 0.005, 0.07); }
 
   function playWin() {
     if (muted) return;
     const c = getCtx();
-    const fanfare = [523.25, 659.25, 783.99, 1046.5, 783.99, 1046.5];
-    fanfare.forEach((freq, i) => {
-      const osc = c.createOscillator();
-      const g = c.createGain();
-      osc.type = "triangle";
-      osc.frequency.value = freq;
+    [523.25, 659.25, 783.99, 1046.5, 783.99, 1046.5].forEach((freq, i) => {
+      const osc = c.createOscillator(), g = c.createGain();
+      osc.type = "triangle"; osc.frequency.value = freq;
       const t = c.currentTime + i * 0.12;
       g.gain.setValueAtTime(0, t);
       g.gain.linearRampToValueAtTime(0.5, t + 0.04);
@@ -222,12 +202,9 @@ function createAudioEngine() {
   function playLose() {
     if (muted) return;
     const c = getCtx();
-    const sad = [392, 349.23, 329.63, 261.63];
-    sad.forEach((freq, i) => {
-      const osc = c.createOscillator();
-      const g = c.createGain();
-      osc.type = "sine";
-      osc.frequency.value = freq;
+    [392, 349.23, 329.63, 261.63].forEach((freq, i) => {
+      const osc = c.createOscillator(), g = c.createGain();
+      osc.type = "sine"; osc.frequency.value = freq;
       const t = c.currentTime + i * 0.2;
       g.gain.setValueAtTime(0, t);
       g.gain.linearRampToValueAtTime(0.4, t + 0.05);
@@ -237,11 +214,7 @@ function createAudioEngine() {
     });
   }
 
-  function setMuted(val) {
-    muted = val;
-    if (bgGain) bgGain.gain.value = val ? 0 : 0.18;
-  }
-
+  function setMuted(val) { muted = val; if (bgGain) bgGain.gain.value = val ? 0 : 0.18; }
   function isMuted() { return muted; }
 
   return { startBg, stopBg, playCorrect, playWrong, playTick, playUrgentTick, playWin, playLose, setMuted, isMuted };
@@ -253,7 +226,7 @@ function getAudio() {
   return _audioEngine;
 }
 
-// ─── Canvas Character drawing ─────────────────────────────────────────────────
+// ─── Canvas Character ─────────────────────────────────────────────────────────
 
 function drawCharacter(ctx, emotion, frame, blinking, dir, jumpY, dancePhase, outfit) {
   ctx.clearRect(0, 0, 110, 180);
@@ -262,12 +235,12 @@ function drawCharacter(ctx, emotion, frame, blinking, dir, jumpY, dancePhase, ou
   ctx.save();
   if (dir === -1) { ctx.translate(110, 0); ctx.scale(-1, 1); }
   const t = frame * 0.14;
-  const bob = emotion === "idle" ? Math.sin(t) * 2.5 : 0;
+  const bob  = emotion === "idle" ? Math.sin(t) * 2.5 : 0;
   const base = 10 + bob - jumpY;
   const ls = emotion === "idle" ? Math.sin(t) * 22 : emotion === "dancing" ? Math.sin(dancePhase * 0.22) * 30 : 0;
   const la = emotion === "idle" ? Math.sin(t) * 26 : emotion === "correct" ? -160 : emotion === "dancing" ? -70 + Math.sin(dancePhase * 0.2) * 40 : 8;
   const ra = emotion === "idle" ? -Math.sin(t) * 26 : emotion === "correct" ? 160 : emotion === "dancing" ? 70 - Math.sin(dancePhase * 0.2) * 40 : -8;
-  const ht = (emotion === "wrong" || emotion === "sad") ? 7 : emotion === "idle" ? Math.sin(t * 0.4) * 1.5 : 0;
+  const ht = (emotion === "sad" || emotion === "wrong") ? 7 : emotion === "idle" ? Math.sin(t * 0.4) * 1.5 : 0;
   const CW = 36, BX = 37, BY = base + 50, HX = 36, HY = base + 10;
 
   function drawArm(sx, sy, ang) {
@@ -337,7 +310,10 @@ function drawCharacter(ctx, emotion, frame, blinking, dir, jumpY, dancePhase, ou
       const py = (emotion === "correct" || emotion === "dancing") ? -1 : emotion === "sad" ? 2 : 0;
       ctx.fillStyle = "#1a0808"; ctx.beginPath(); ctx.arc(ex + 4 + px, ey + 3.5 + py, 2.8, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = "rgba(255,255,255,0.9)"; ctx.beginPath(); ctx.arc(ex + 5.5 + px, ey + 2 + py, 1.1, 0, Math.PI * 2); ctx.fill();
-      if (emotion === "correct" || emotion === "dancing") { ctx.strokeStyle = "#fde68a"; ctx.lineWidth = 0.7; ctx.beginPath(); ctx.arc(ex + 4, ey + 3.5, 5, 0, Math.PI * 2); ctx.stroke(); }
+      if (emotion === "correct" || emotion === "dancing") {
+        ctx.strokeStyle = "#fde68a"; ctx.lineWidth = 0.7;
+        ctx.beginPath(); ctx.arc(ex + 4, ey + 3.5, 5, 0, Math.PI * 2); ctx.stroke();
+      }
     }
   });
   ctx.strokeStyle = "#1a0808"; ctx.lineWidth = 1.8; ctx.lineCap = "round";
@@ -357,10 +333,13 @@ function drawCharacter(ctx, emotion, frame, blinking, dir, jumpY, dancePhase, ou
   }
   if (emotion === "correct") {
     ctx.font = "bold 13px sans-serif"; ctx.fillStyle = "#4ade80"; ctx.fillText("✓", 15, -HH / 2 - 3);
-    const cc = ["#fbbf24", "#f472b6", "#34d399", "#60a5fa", "#a78bfa", "#fb923c"];
-    for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2, r = 24; ctx.fillStyle = cc[i]; ctx.beginPath(); ctx.arc(Math.cos(a) * r, Math.sin(a) * r - 4, 2.5, 0, Math.PI * 2); ctx.fill(); }
+    const cc = ["#fbbf24","#f472b6","#34d399","#60a5fa","#a78bfa","#fb923c"];
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2, r = 24;
+      ctx.fillStyle = cc[i]; ctx.beginPath(); ctx.arc(Math.cos(a) * r, Math.sin(a) * r - 4, 2.5, 0, Math.PI * 2); ctx.fill();
+    }
   }
-  if (emotion === "wrong") { ctx.font = "bold 13px sans-serif"; ctx.fillStyle = "#f87171"; ctx.fillText("✗", 15, -HH / 2 - 3); }
+  if (emotion === "wrong")   { ctx.font = "bold 13px sans-serif"; ctx.fillStyle = "#f87171"; ctx.fillText("✗", 15, -HH / 2 - 3); }
   if (emotion === "skipped") { ctx.font = "13px sans-serif"; ctx.fillStyle = "#fbbf24"; ctx.fillText("?", 15, -HH / 2 - 3); }
   if (emotion === "dancing") { ctx.font = "14px sans-serif"; ctx.fillText(["⭐", "✨"][Math.floor(frame / 10) % 2], 16, -HH / 2 - 3); }
   ctx.restore(); ctx.restore();
@@ -370,23 +349,22 @@ function drawCharacter(ctx, emotion, frame, blinking, dir, jumpY, dancePhase, ou
 
 function CharacterCanvas({ phase, answered, emotion, containerRef }) {
   const canvasRef = useRef(null);
-  const stateRef = useRef({
+  const stateRef  = useRef({
     cx: 120, cy: 200, vx: 0.7, vy: 0.55, dir: 1,
     frame: 0, blink: 0, blinking: false, emTimer: 0,
     jumpY: 0, shakeX: 0, dancePhase: 0,
-    outfitIdx: 0,
-    outfitChangedAt: Date.now(),
+    outfitIdx: 0, outfitChangedAt: Date.now(),
     frozenX: null, frozenY: null,
   });
-  const emotionRef = useRef(emotion);
-  const phaseRef = useRef(phase);
-  const answeredRef = useRef(answered);
-  const [toast, setToast] = useState({ msg: "", visible: false });
+  const emotionRef   = useRef(emotion);
+  const phaseRef     = useRef(phase);
+  const answeredRef  = useRef(answered);
+  const [toast, setToast]   = useState({ msg: "", visible: false });
   const toastTimerRef = useRef(null);
-  const rafRef = useRef(null);
+  const rafRef        = useRef(null);
 
   useEffect(() => { emotionRef.current = emotion; }, [emotion]);
-  useEffect(() => { phaseRef.current = phase; }, [phase]);
+  useEffect(() => { phaseRef.current   = phase;   }, [phase]);
   useEffect(() => { answeredRef.current = answered; }, [answered]);
 
   const showToast = useCallback((msg) => {
@@ -399,7 +377,7 @@ function CharacterCanvas({ phase, answered, emotion, containerRef }) {
     const cv = canvasRef.current;
     if (!cv) return;
     const ctx = cv.getContext("2d");
-    const s = stateRef.current;
+    const s   = stateRef.current;
 
     function getContainerSize() {
       const el = containerRef?.current;
@@ -420,8 +398,8 @@ function CharacterCanvas({ phase, answered, emotion, containerRef }) {
       const cb = getQCardBounds();
       if (!cb) return;
       const PAD = 70, mcx = cb.x + cb.w / 2, mcy = cb.y + cb.h / 2;
-      const hw = cb.w / 2 + PAD, hh = cb.h / 2 + PAD;
-      const dx = s.cx - mcx, dy = s.cy - mcy;
+      const hw  = cb.w / 2 + PAD, hh = cb.h / 2 + PAD;
+      const dx  = s.cx - mcx, dy = s.cy - mcy;
       if (Math.abs(dx) < hw && Math.abs(dy) < hh) {
         if (Math.abs(dx) / hw < Math.abs(dy) / hh) s.vy += (dy > 0 ? 1 : -1) * 0.10;
         else s.vx += (dx > 0 ? 1 : -1) * 0.10;
@@ -433,23 +411,24 @@ function CharacterCanvas({ phase, answered, emotion, containerRef }) {
       const P = 28;
       steer();
       s.cx += s.vx; s.cy += s.vy;
-      if (s.cx < P) { s.cx = P; s.vx = Math.abs(s.vx) + 0.05; }
+      if (s.cx < P)     { s.cx = P;     s.vx =  Math.abs(s.vx) + 0.05; }
       if (s.cx > W - P) { s.cx = W - P; s.vx = -(Math.abs(s.vx) + 0.05); }
-      if (s.cy < P + 60) { s.cy = P + 60; s.vy = Math.abs(s.vy) + 0.05; }
+      if (s.cy < P + 60){ s.cy = P + 60; s.vy = Math.abs(s.vy) + 0.05; }
       if (s.cy > H - P) { s.cy = H - P; s.vy = -(Math.abs(s.vy) + 0.05); }
       const sp = Math.hypot(s.vx, s.vy);
       if (sp > 1.0) { s.vx = s.vx / sp * 1.0; s.vy = s.vy / sp * 1.0; }
       if (sp < 0.5) { s.vx = s.vx / sp * 0.5; s.vy = s.vy / sp * 0.5; }
       if (Math.random() < 0.004) { s.vx += (Math.random() - 0.5) * 0.25; s.vy += (Math.random() - 0.5) * 0.25; }
-      if (s.vx > 0.08) s.dir = 1;
+      if (s.vx >  0.08) s.dir =  1;
       if (s.vx < -0.08) s.dir = -1;
     }
 
     function loop() {
       const currentPhase = phaseRef.current;
       const e = emotionRef.current;
-
       const now = Date.now();
+
+      // Outfit rotation
       if (now - s.outfitChangedAt >= OUTFIT_INTERVAL_MS) {
         s.outfitChangedAt = now;
         s.outfitIdx = (s.outfitIdx + 1) % OUTFITS.length;
@@ -457,37 +436,43 @@ function CharacterCanvas({ phase, answered, emotion, containerRef }) {
       }
 
       if (currentPhase === "result") {
+        // Freeze position on result screen
         if (s.frozenX === null) { s.frozenX = s.cx; s.frozenY = s.cy; }
         s.cx = s.frozenX; s.cy = s.frozenY;
-        s.frame++;
-        s.blink++;
-        if (s.blink > 110) { s.blinking = true; if (s.blink > 122) { s.blinking = false; s.blink = 0; } }
-        s.emTimer++;
-        if (e === "dancing") { s.dancePhase++; s.jumpY = Math.abs(Math.sin(s.emTimer * 0.22)) * 18; }
-        else { s.jumpY = 0; s.shakeX = 0; }
-        cv.style.left = (s.cx - 55) + "px";
-        cv.style.top = (s.cy - 90) + "px";
-        drawCharacter(ctx, e, s.frame, s.blinking, s.dir, s.jumpY, s.dancePhase, OUTFITS[s.outfitIdx]);
-        rafRef.current = requestAnimationFrame(loop);
-        return;
+      } else {
+        s.frozenX = null; s.frozenY = null;
+        // Only walk when not in a reaction emotion or when NOT answered yet
+        // During correct/wrong/skipped the character stays put for the animation
+        const reacting = e === "correct" || e === "wrong" || e === "skipped";
+        if (!reacting) walkStep();
       }
 
-      s.frozenX = null; s.frozenY = null;
       s.frame++;
       s.blink++;
       if (s.blink > 110) { s.blinking = true; if (s.blink > 122) { s.blinking = false; s.blink = 0; } }
       s.emTimer++;
 
-      if (e === "correct") s.jumpY = Math.max(0, Math.sin(s.emTimer * 0.2) * 36);
-      else if (e === "wrong") s.shakeX = Math.sin(s.emTimer * 0.65) * 7 * Math.max(0, 1 - s.emTimer / 55);
-      else if (e === "dancing") { s.dancePhase++; s.jumpY = Math.abs(Math.sin(s.emTimer * 0.22)) * 18; }
-      else { s.jumpY = 0; s.shakeX = 0; }
+      // Per-emotion physics
+      if (e === "correct") {
+        // Full jump arc
+        s.jumpY = Math.max(0, Math.sin(s.emTimer * 0.2) * 36);
+        s.shakeX = 0;
+      } else if (e === "wrong") {
+        // Head-shake then settle
+        s.shakeX = Math.sin(s.emTimer * 0.65) * 7 * Math.max(0, 1 - s.emTimer / 55);
+        s.jumpY = 0;
+      } else if (e === "dancing") {
+        s.dancePhase++;
+        s.jumpY  = Math.abs(Math.sin(s.emTimer * 0.22)) * 18;
+        s.shakeX = 0;
+      } else {
+        // idle / sad / skipped — no physics effect
+        s.jumpY  = 0;
+        s.shakeX = 0;
+      }
 
-      const shouldWalk = currentPhase !== "playing" || !answeredRef.current;
-      if (shouldWalk) walkStep();
-
-      cv.style.left = (s.cx - 55) + "px";
-      cv.style.top = (s.cy - 90) + "px";
+      cv.style.left = (s.cx - 55 + s.shakeX) + "px";
+      cv.style.top  = (s.cy - 90) + "px";
       drawCharacter(ctx, e, s.frame, s.blinking, s.dir, s.jumpY, s.dancePhase, OUTFITS[s.outfitIdx]);
       rafRef.current = requestAnimationFrame(loop);
     }
@@ -522,7 +507,6 @@ function MuteButton({ muted, onToggle }) {
       borderRadius: "50%", width: 38, height: 38, cursor: "pointer",
       display: "flex", alignItems: "center", justifyContent: "center",
       fontSize: 16, color: muted ? "#6b7280" : "#a78bfa",
-      transition: "color .2s, border-color .2s",
     }}>{muted ? "🔇" : "🔊"}</button>
   );
 }
@@ -536,15 +520,15 @@ const Orbs = () => (
   </>
 );
 
-const card = { background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 20, padding: "28px 24px" };
+const card     = { background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 20, padding: "28px 24px" };
 const statCard = { background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 18, padding: "20px 24px", minWidth: 100, textAlign: "center", flex: 1, maxWidth: 180 };
 
-// ─── Inner screens ────────────────────────────────────────────────────────────
+// ─── Screens ──────────────────────────────────────────────────────────────────
 
 function IntroScreen({ onGoMode, theme }) {
   const accentColor = theme?.primary || "#a78bfa";
-  const gradient = theme?.gradient || "linear-gradient(135deg,#a78bfa,#f472b6)";
-  const items = [["📝", "10", "Questions"], ["🎮", "4", "Difficulties"], ["🔥", "+15", "Streak bonus"], ["👕", "Auto", "Outfit swaps"]];
+  const gradient    = theme?.gradient || "linear-gradient(135deg,#a78bfa,#f472b6)";
+  const items = [["📝","10","Questions"],["🎮","4","Difficulties"],["🔥","+15","Streak bonus"],["👕","Auto","Outfit swaps"]];
   return (
     <div style={{ textAlign: "center", position: "relative", zIndex: 1, width: "100%" }}>
       <p style={{ color: accentColor, fontSize: 12, fontWeight: 700, letterSpacing: 4, textTransform: "uppercase", marginBottom: 10 }}>Challenge Yourself</p>
@@ -603,17 +587,18 @@ function PlayingScreen({ qs, cur, answered, sel, fill, onFillChange, score, stre
   const q = qs[cur];
   if (!q) return null;
   const M = MODES.find(x => x.id === mode) || MODES[1];
-  const catClr = CAT_CLR[q.c] || "#a78bfa";
-  const timerClr = timeLeft <= 5 ? "#ff4040" : M.color;
-  const pct = timeLeft / M.time;
-  const circ = 2 * Math.PI * 24;
-  const textColor = theme?.text || "#f1f5f9";
+  const catClr    = CAT_CLR[q.c] || "#a78bfa";
+  const timerClr  = timeLeft <= 5 ? "#ff4040" : M.color;
+  const pct       = timeLeft / M.time;
+  const circ      = 2 * Math.PI * 24;
+  const textColor  = theme?.text  || "#f1f5f9";
   const mutedColor = theme?.textMuted || "#6b7280";
   const borderColor = theme?.border || "rgba(255,255,255,0.1)";
-  const cardBg = theme?.bgCard ? theme.bgCard + "99" : "rgba(255,255,255,0.05)";
+  const cardBg    = theme?.bgCard ? theme.bgCard + "99" : "rgba(255,255,255,0.05)";
 
   return (
     <div style={{ maxWidth: 620, width: "100%", position: "relative", zIndex: 1 }}>
+      {/* Header row */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{ position: "relative", width: 60, height: 60, flexShrink: 0 }}>
@@ -642,6 +627,7 @@ function PlayingScreen({ qs, cur, answered, sel, fill, onFillChange, score, stre
         </div>
       </div>
 
+      {/* Progress bar */}
       <div style={{ width: "100%", height: 5, background: "rgba(255,255,255,.08)", borderRadius: 10, overflow: "hidden", marginBottom: 24 }}>
         <div style={{ height: "100%", background: theme?.gradient || "linear-gradient(90deg,#8b5cf6,#ec4899)", borderRadius: 10, width: `${((cur + 1) / TOTAL) * 100}%`, transition: "width .5s ease" }} />
       </div>
@@ -653,12 +639,14 @@ function PlayingScreen({ qs, cur, answered, sel, fill, onFillChange, score, stre
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {q.o.map((opt, i) => {
               const correct = answered && i === getCorrectAnswer(cur);
-              const wrong = answered && sel === i && !correct;
+              const wrong   = answered && sel === i && !correct;
               return (
                 <button key={i} disabled={answered} onClick={() => onMCQ(i)} style={{
-                  width: "100%", background: correct ? "rgba(67,233,123,.14)" : wrong ? "rgba(255,101,132,.14)" : (theme?.bgCard ? theme.bgCard + "66" : "rgba(255,255,255,0.04)"),
+                  width: "100%",
+                  background: correct ? "rgba(67,233,123,.14)" : wrong ? "rgba(255,101,132,.14)" : (theme?.bgCard ? theme.bgCard + "66" : "rgba(255,255,255,0.04)"),
                   border: `2px solid ${correct ? "#43e97b" : wrong ? "#ff6584" : borderColor}`,
-                  borderRadius: 14, padding: "14px 16px", color: correct ? "#43e97b" : wrong ? "#ff6584" : textColor,
+                  borderRadius: 14, padding: "14px 16px",
+                  color: correct ? "#43e97b" : wrong ? "#ff6584" : textColor,
                   cursor: "pointer", textAlign: "left", fontSize: 14, fontWeight: 500,
                   display: "flex", alignItems: "center", gap: 12, fontFamily: "inherit",
                 }}>
@@ -676,7 +664,7 @@ function PlayingScreen({ qs, cur, answered, sel, fill, onFillChange, score, stre
           <div style={{ display: "flex", gap: 12 }}>
             {[true, false].map(v => {
               const correct = answered && v === getCorrectAnswer(cur);
-              const wrong = answered && sel === v && !correct;
+              const wrong   = answered && sel === v && !correct;
               return (
                 <button key={String(v)} disabled={answered} onClick={() => onTF(v)} style={{
                   flex: 1, padding: 18, borderRadius: 14, fontSize: 15, fontWeight: 700, cursor: "pointer",
@@ -689,19 +677,12 @@ function PlayingScreen({ qs, cur, answered, sel, fill, onFillChange, score, stre
           </div>
         )}
 
-        {/* ── Fill in the blank ── */}
         {q.t === "fill" && (() => {
           const lastR = results[results.length - 1];
           return (
             <>
-              {/* FIX: Case-insensitive badge shown on the input */}
               <div style={{ marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
-                <span style={{
-                  fontSize: 11, fontWeight: 700, letterSpacing: 0.5,
-                  color: "#a78bfa", background: "rgba(167,139,250,0.12)",
-                  border: "1px solid rgba(167,139,250,0.25)",
-                  padding: "2px 8px", borderRadius: 20,
-                }}>
+                <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, color: "#a78bfa", background: "rgba(167,139,250,0.12)", border: "1px solid rgba(167,139,250,0.25)", padding: "2px 8px", borderRadius: 20 }}>
                   🔤 Case-insensitive
                 </span>
                 <span style={{ fontSize: 12, color: mutedColor }}>Hint: {q.h}</span>
@@ -730,16 +711,8 @@ function PlayingScreen({ qs, cur, answered, sel, fill, onFillChange, score, stre
                 )}
               </div>
               {answered && lastR && (
-                <div style={{
-                  marginTop: 10, padding: "11px 14px", borderRadius: 12, fontSize: 13,
-                  background: lastR.ok ? "rgba(67,233,123,.1)" : "rgba(255,101,132,.1)",
-                  border: `1px solid ${lastR.ok ? "#43e97b" : "#ff6584"}`,
-                  color: lastR.ok ? "#43e97b" : "#ff6584",
-                }}>
-                  {lastR.ok
-                    ? "✓ Correct!"
-                    : <>✗ Correct answer: <strong>{q.a}</strong></>
-                  }
+                <div style={{ marginTop: 10, padding: "11px 14px", borderRadius: 12, fontSize: 13, background: lastR.ok ? "rgba(67,233,123,.1)" : "rgba(255,101,132,.1)", border: `1px solid ${lastR.ok ? "#43e97b" : "#ff6584"}`, color: lastR.ok ? "#43e97b" : "#ff6584" }}>
+                  {lastR.ok ? "✓ Correct!" : <>✗ Correct answer: <strong>{q.a}</strong></>}
                 </div>
               )}
             </>
@@ -751,10 +724,10 @@ function PlayingScreen({ qs, cur, answered, sel, fill, onFillChange, score, stre
 }
 
 function ResultScreen({ results, score, mode, onChangeMode, onPlayAgain, theme }) {
-  const ok = results.filter(r => r.ok).length;
-  const pct = Math.round((score / (TOTAL * 10)) * 100);
-  const M = MODES.find(x => x.id === mode) || MODES[1];
-  const gradient = theme?.gradient || "linear-gradient(135deg,#8b5cf6,#ec4899)";
+  const ok       = results.filter(r => r.ok).length;
+  const pct      = Math.round((score / (TOTAL * 10)) * 100);
+  const M        = MODES.find(x => x.id === mode) || MODES[1];
+  const gradient  = theme?.gradient || "linear-gradient(135deg,#8b5cf6,#ec4899)";
   const textColor = theme?.text || "#fffffe";
   const mutedColor = theme?.textMuted || "#6b7280";
   const borderColor = theme?.border || "rgba(255,255,255,.08)";
@@ -797,28 +770,54 @@ function ResultScreen({ results, score, mode, onChangeMode, onPlayAgain, theme }
 
 export default function DevQuiz() {
   const { theme } = useTheme();
-  const [phase, setPhase] = useState("intro");
-  const [mode, setMode] = useState("medium");
-  const [qs, setQs] = useState([]);
-  const [cur, setCur] = useState(0);
-  const [sel, setSel] = useState(null);
-  const [fill, setFill] = useState("");
+  const [phase,    setPhase]    = useState("intro");
+  const [mode,     setMode]     = useState("medium");
+  const [qs,       setQs]       = useState([]);
+  const [cur,      setCur]      = useState(0);
+  const [sel,      setSel]      = useState(null);
+  const [fill,     setFill]     = useState("");
   const [answered, setAnswered] = useState(false);
-  const [score, setScore] = useState(0);
-  const [results, setResults] = useState([]);
+  const [score,    setScore]    = useState(0);
+  const [results,  setResults]  = useState([]);
   const [timeLeft, setTimeLeft] = useState(20);
-  const [streak, setStreak] = useState(0);
-  const [emotion, setEmotion] = useState("idle");
-  const [muted, setMuted] = useState(false);
+  const [streak,   setStreak]   = useState(0);
+  const [muted,    setMuted]    = useState(false);
 
-  const containerRef = useRef(null);
-  const answerCacheRef = useRef({});
-  const committedRef = useRef(false);
-  const lastCommitRef = useRef(0);
-  const timerRef = useRef(null);
-  const prevTimeRef = useRef(null);
+  // ── Emotion state machine ─────────────────────────────────────────────────
+  // "currentEmotion"  → what the character is doing RIGHT NOW
+  // "pendingEmotion"  → what to settle into after the reaction finishes
+  // This ensures correct/wrong animations always play to completion before
+  // the character transitions to idle/sad/dancing for the next question.
+  const [currentEmotion, setCurrentEmotion] = useState("idle");
+  const pendingEmotionRef = useRef(null);
+  const emotionTimerRef   = useRef(null);
 
-  const bgColor = theme?.bg || "#0a0918";
+  /**
+   * setReaction(reaction, settle)
+   *   reaction — immediate emotion to show (correct | wrong | skipped)
+   *   settle   — emotion to show after the reaction plays out (idle | sad | dancing)
+   *
+   * The reaction plays for EMOTION_DURATION[reaction] ms, then
+   * transitions to `settle`. If a new reaction arrives before the timer
+   * fires, the pending settle is replaced.
+   */
+  const setReaction = useCallback((reaction, settle) => {
+    clearTimeout(emotionTimerRef.current);
+    pendingEmotionRef.current = settle;
+    setCurrentEmotion(reaction);
+    emotionTimerRef.current = setTimeout(() => {
+      setCurrentEmotion(pendingEmotionRef.current || "idle");
+    }, EMOTION_DURATION[reaction] || 1200);
+  }, []);
+
+  const containerRef    = useRef(null);
+  const answerCacheRef  = useRef({});
+  const committedRef    = useRef(false);
+  const lastCommitRef   = useRef(0);
+  const timerRef        = useRef(null);
+  const prevTimeRef     = useRef(null);
+
+  const bgColor   = theme?.bg   || "#0a0918";
   const textColor = theme?.text || "#fffffe";
 
   const toggleMute = () => {
@@ -855,16 +854,13 @@ export default function DevQuiz() {
     return true;
   };
 
-  // ── FIXED: case-insensitive fill comparison ──────────────────────────────
-  // Both sides are trimmed and lowercased so "Ref", "REF", "ref" all pass.
-  // This is the single source of truth — no duplication elsewhere.
   const checkAns = useCallback((q, idx, userSel) => {
     const correct = getCA(idx);
     if (correct === null) return false;
-    if (q.t === "mcq") return userSel === correct;
+    if (q.t === "mcq")      return userSel === correct;
     if (q.t === "truefalse") return userSel === correct;
     if (q.t === "fill") {
-      const userNorm = typeof userSel === "string" ? userSel.trim().toLowerCase() : "";
+      const userNorm    = typeof userSel === "string" ? userSel.trim().toLowerCase() : "";
       const correctNorm = String(correct).trim().toLowerCase();
       return userNorm !== "" && userNorm === correctNorm;
     }
@@ -887,8 +883,10 @@ export default function DevQuiz() {
     }, 1000);
   }, []);
 
-  // Mood thresholds: <5 correct=sad face, 5-7=smile, 8-10=dancing
-  const getMood = (n) => n >= 8 ? "dancing" : n >= 5 ? "correct" : "sad";
+  // Score-based "resting" emotion — used between questions and on result screen.
+  // < 5 correct → sad;  5–7 → idle (neutral smile);  8–10 → dancing
+  const getRestEmotion = (correctCount) =>
+    correctCount >= 8 ? "dancing" : correctCount >= 5 ? "idle" : "sad";
 
   const commitRef = useRef(null);
   commitRef.current = (userAnswer, timedOut = false, commitMode, commitQs, commitCur) => {
@@ -896,61 +894,69 @@ export default function DevQuiz() {
     committedRef.current = true;
     clearInterval(timerRef.current);
 
-    const curQs = commitQs || qs;
+    const curQs  = commitQs  || qs;
     const curIdx = commitCur !== undefined ? commitCur : cur;
-    const curMode = commitMode || mode;
-    const q = curQs[curIdx];
-    const blank = userAnswer === null || userAnswer === undefined || (typeof userAnswer === "string" && userAnswer.trim() === "");
-    const ok = !timedOut && !blank && checkAns(q, curIdx, userAnswer);
+    const q      = curQs[curIdx];
+    const blank  = userAnswer === null || userAnswer === undefined || (typeof userAnswer === "string" && userAnswer.trim() === "");
+    const ok     = !timedOut && !blank && checkAns(q, curIdx, userAnswer);
 
     const audio = getAudio();
-    if (ok) audio.playCorrect();
+    if (ok)                    audio.playCorrect();
     else if (!blank && !timedOut) audio.playWrong();
 
-    // Compute running correct count to set persistent mood after flash
-    const newCorrects = results.filter(r => r.ok).length + (ok ? 1 : 0);
+    // Running correct count used to pick the resting emotion
+    setResults(prev => {
+      const newResults   = [...prev, { q, userAnswer, ok, timedOut: timedOut || blank }];
+      const correctCount = newResults.filter(r => r.ok).length;
+      const restEmotion  = getRestEmotion(correctCount);
 
-    setAnswered(true);
-    setSel(userAnswer);
-    setStreak(prev => {
-      const newStreak = ok ? prev + 1 : 0;
-      setScore(s => s + (ok ? (newStreak >= 3 ? 15 : 10) : 0));
-      return newStreak;
-    });
-    // Immediate per-answer flash (correct/wrong/skipped)
-    setEmotion(timedOut || blank ? "skipped" : ok ? "correct" : "wrong");
-    setResults(prev => [...prev, { q, userAnswer, ok, timedOut: timedOut || blank }]);
+      // ── KEY FIX: reaction plays first, THEN character settles ──────────
+      const reactionEmotion = (timedOut || blank) ? "skipped" : ok ? "correct" : "wrong";
+      setReaction(reactionEmotion, restEmotion);
 
-    setTimeout(() => {
-      const next = curIdx + 1;
-      if (next >= TOTAL) {
-        setScore(s => {
+      setAnswered(true);
+      setSel(userAnswer);
+      setStreak(s => {
+        const ns = ok ? s + 1 : 0;
+        setScore(sc => sc + (ok ? (ns >= 3 ? 15 : 10) : 0));
+        return ns;
+      });
+
+      const delay = EMOTION_DURATION[reactionEmotion] || 1200;
+      setTimeout(() => {
+        const next = curIdx + 1;
+        if (next >= TOTAL) {
+          // Result screen
           setTimeout(() => {
-            if (s / (TOTAL * 10) >= 0.5) audio.playWin();
+            const finalScore = newResults.reduce((acc, r) => acc + (r.ok ? 10 : 0), 0);
+            if (finalScore / (TOTAL * 10) >= 0.5) audio.playWin();
             else audio.playLose();
           }, 100);
-          return s;
-        });
-        setPhase("result");
-        // Final result screen uses same mood logic
-        setEmotion(getMood(newCorrects));
-      } else {
-        setCur(next);
-        setSel(null);
-        setFill("");
-        setAnswered(false);
-        committedRef.current = false;
-        // Settle into score-based mood: sad / smile / dancing
-        setEmotion(getMood(newCorrects));
-        startTimer(curMode, curQs, next);
-      }
-    }, timedOut || blank ? 900 : 1400);
+          setPhase("result");
+          // Character holds the resting emotion on the result screen
+          setCurrentEmotion(restEmotion);
+          clearTimeout(emotionTimerRef.current);
+        } else {
+          setCur(next);
+          setSel(null);
+          setFill("");
+          setAnswered(false);
+          committedRef.current = false;
+          // Character is already in restEmotion from the timer above;
+          // no extra setCurrentEmotion needed here — avoids double-set.
+          startTimer(commitMode || mode, curQs, next);
+        }
+      }, delay + 50); // tiny extra buffer so animation fully finishes
+
+      return newResults;
+    });
   };
 
   const startQuiz = useCallback((selectedMode) => {
     const shuffled = secureShuffle(ALL_Q).slice(0, TOTAL);
     cacheAnswers(shuffled);
     committedRef.current = false;
+    clearTimeout(emotionTimerRef.current);
     const m = selectedMode || mode;
     const M = MODES.find(x => x.id === m) || MODES[1];
     setQs(shuffled);
@@ -961,33 +967,30 @@ export default function DevQuiz() {
     setScore(0);
     setResults([]);
     setStreak(0);
-    setEmotion("idle");
+    setCurrentEmotion("idle");
     setTimeLeft(M.time);
     setPhase("playing");
     setTimeout(() => startTimer(m, shuffled, 0), 50);
   }, [mode, startTimer]);
 
-  const handleMCQ = (i) => { if (!answered && canCommit()) commitRef.current(i); };
-  const handleTF = (v) => { if (!answered && canCommit()) commitRef.current(v); };
-  const handleFill = () => { if (!answered && fill.trim() && canCommit()) commitRef.current(fill); };
+  const handleMCQ  = (i) => { if (!answered && canCommit()) commitRef.current(i); };
+  const handleTF   = (v) => { if (!answered && canCommit()) commitRef.current(v); };
+  const handleFill = ()  => { if (!answered && fill.trim() && canCommit()) commitRef.current(fill); };
 
-  useEffect(() => () => clearInterval(timerRef.current), []);
+  useEffect(() => () => {
+    clearInterval(timerRef.current);
+    clearTimeout(emotionTimerRef.current);
+  }, []);
 
   return (
     <section
       id="quiz"
       ref={containerRef}
       style={{
-        background: bgColor,
-        color: textColor,
+        background: bgColor, color: textColor,
         fontFamily: "system-ui,-apple-system,sans-serif",
-        minHeight: "100vh",
-        position: "relative",
-        overflow: "hidden",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
+        minHeight: "100vh", position: "relative", overflow: "hidden",
+        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
         padding: "80px 16px 40px",
       }}
     >
@@ -997,7 +1000,7 @@ export default function DevQuiz() {
         position: "absolute", top: 12, right: 12,
         background: "rgba(0,0,0,.6)", border: `1px solid ${theme?.border || "rgba(255,255,255,.1)"}`,
         padding: "5px 10px", borderRadius: 20, fontSize: 10,
-        color: theme?.textMuted || "#6b7280", zIndex: 100, pointerEvents: "none"
+        color: theme?.textMuted || "#6b7280", zIndex: 100, pointerEvents: "none",
       }}>🔒 Quiz secured</div>
 
       <MuteButton muted={muted} onToggle={toggleMute} />
@@ -1005,17 +1008,15 @@ export default function DevQuiz() {
       <CharacterCanvas
         phase={phase}
         answered={answered}
-        emotion={emotion}
+        emotion={currentEmotion}
         containerRef={containerRef}
       />
 
       {phase === "intro" && <IntroScreen onGoMode={() => setPhase("mode")} theme={theme} />}
-      {phase === "mode" && (
+      {phase === "mode"  && (
         <ModeScreen
-          selectedMode={mode}
-          onSelectMode={setMode}
-          onBack={() => setPhase("intro")}
-          onStart={() => startQuiz(mode)}
+          selectedMode={mode} onSelectMode={setMode}
+          onBack={() => setPhase("intro")} onStart={() => startQuiz(mode)}
           theme={theme}
         />
       )}
