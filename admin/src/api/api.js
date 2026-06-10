@@ -97,10 +97,10 @@ export const uploadResume = (file) => {
   const fd = new FormData();
   fd.append("resume", file);
 
-  return api.post("/upload/resume", fd, {
+  return API.post("/upload/resume", fd, {
     headers: {
-      Authorization: `Bearer ${localStorage.getItem("token")}`
-    }
+      "Content-Type": "multipart/form-data",
+    },
   });
 };
 
@@ -111,10 +111,10 @@ export const uploadAvatar = (file) => {
   const fd = new FormData();
   fd.append("avatar", file);
 
-  return api.post("/upload/avatar", fd, {
+  return API.post("/upload/avatar", fd, {
     headers: {
-      Authorization: `Bearer ${localStorage.getItem("token")}`
-    }
+      "Content-Type": "multipart/form-data",
+    },
   });
 };
 
