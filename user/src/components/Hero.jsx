@@ -206,13 +206,12 @@ const avatarH = tier === 'desktop' ? 520 : 420;
   loading="lazy"
   decoding="async"
   onLoad={() => setImgLoaded(true)}
-  onError={(e) => {
-
+ onError={(e) => {
   console.log("IMAGE FAILED");
 
-  console.log(e.currentTarget.src);
-
-  e.currentTarget.src = FALLBACK_AVATAR;
+  if (e.currentTarget.src !== FALLBACK_AVATAR) {
+    e.currentTarget.src = FALLBACK_AVATAR;
+  }
 
   setImgLoaded(true);
 }}
