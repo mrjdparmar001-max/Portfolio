@@ -50,11 +50,10 @@ const TOTAL = 10;
 const OUTFIT_INTERVAL_MS = 3600 * 1000;
 
 // ─── Emotion durations (ms) ──────────────────────────────────────────────────
-// How long each reaction plays before settling into the "between questions" idle.
 const EMOTION_DURATION = {
-  correct: 1400,   // jump + cheer plays fully before next question
-  wrong:   1400,   // shake plays fully
-  skipped:  900,   // quick shrug
+  correct: 1400,
+  wrong:   1400,
+  skipped:  900,
 };
 
 // ─── Security helpers ────────────────────────────────────────────────────────
@@ -440,9 +439,11 @@ function CharacterCanvas({ phase, answered, emotion, containerRef }) {
         if (s.frozenX === null) { s.frozenX = s.cx; s.frozenY = s.cy; }
         s.cx = s.frozenX; s.cy = s.frozenY;
       } else {
-        s.frozenX = null; s.frozenY = null;
-        // Only walk when not in a reaction emotion or when NOT answered yet
-        // During correct/wrong/skipped the character stays put for the animation
+        // ── FIX: always clear frozen coords when not on result screen ──
+        s.frozenX = null;
+        s.frozenY = null;
+
+        // Walk freely when idle/dancing/sad; pause only during reaction animations
         const reacting = e === "correct" || e === "wrong" || e === "skipped";
         if (!reacting) walkStep();
       }
@@ -450,15 +451,19 @@ function CharacterCanvas({ phase, answered, emotion, containerRef }) {
       s.frame++;
       s.blink++;
       if (s.blink > 110) { s.blinking = true; if (s.blink > 122) { s.blinking = false; s.blink = 0; } }
+
+      // ── FIX: reset emTimer when emotion changes so physics starts fresh ──
+      if (e !== emotionRef._last) {
+        s.emTimer = 0;
+        emotionRef._last = e;
+      }
       s.emTimer++;
 
       // Per-emotion physics
       if (e === "correct") {
-        // Full jump arc
         s.jumpY = Math.max(0, Math.sin(s.emTimer * 0.2) * 36);
         s.shakeX = 0;
       } else if (e === "wrong") {
-        // Head-shake then settle
         s.shakeX = Math.sin(s.emTimer * 0.65) * 7 * Math.max(0, 1 - s.emTimer / 55);
         s.jumpY = 0;
       } else if (e === "dancing") {
@@ -466,7 +471,7 @@ function CharacterCanvas({ phase, answered, emotion, containerRef }) {
         s.jumpY  = Math.abs(Math.sin(s.emTimer * 0.22)) * 18;
         s.shakeX = 0;
       } else {
-        // idle / sad / skipped — no physics effect
+        // idle / sad / skipped — reset physics so no leftover jump/shake
         s.jumpY  = 0;
         s.shakeX = 0;
       }
@@ -783,24 +788,10 @@ export default function DevQuiz() {
   const [streak,   setStreak]   = useState(0);
   const [muted,    setMuted]    = useState(false);
 
-  // ── Emotion state machine ─────────────────────────────────────────────────
-  // "currentEmotion"  → what the character is doing RIGHT NOW
-  // "pendingEmotion"  → what to settle into after the reaction finishes
-  // This ensures correct/wrong animations always play to completion before
-  // the character transitions to idle/sad/dancing for the next question.
   const [currentEmotion, setCurrentEmotion] = useState("idle");
   const pendingEmotionRef = useRef(null);
   const emotionTimerRef   = useRef(null);
 
-  /**
-   * setReaction(reaction, settle)
-   *   reaction — immediate emotion to show (correct | wrong | skipped)
-   *   settle   — emotion to show after the reaction plays out (idle | sad | dancing)
-   *
-   * The reaction plays for EMOTION_DURATION[reaction] ms, then
-   * transitions to `settle`. If a new reaction arrives before the timer
-   * fires, the pending settle is replaced.
-   */
   const setReaction = useCallback((reaction, settle) => {
     clearTimeout(emotionTimerRef.current);
     pendingEmotionRef.current = settle;
@@ -883,8 +874,6 @@ export default function DevQuiz() {
     }, 1000);
   }, []);
 
-  // Score-based "resting" emotion — used between questions and on result screen.
-  // < 5 correct → sad;  5–7 → idle (neutral smile);  8–10 → dancing
   const getRestEmotion = (correctCount) =>
     correctCount >= 8 ? "dancing" : correctCount >= 5 ? "idle" : "sad";
 
@@ -901,55 +890,69 @@ export default function DevQuiz() {
     const ok     = !timedOut && !blank && checkAns(q, curIdx, userAnswer);
 
     const audio = getAudio();
-    if (ok)                    audio.playCorrect();
+    if (ok)                       audio.playCorrect();
     else if (!blank && !timedOut) audio.playWrong();
 
-    // Running correct count used to pick the resting emotion
+    // ── Determine emotions BEFORE entering any state updater ──────────────
+    const reactionEmotion = (timedOut || blank) ? "skipped" : ok ? "correct" : "wrong";
+
+    // Update score / streak synchronously
+    setAnswered(true);
+    setSel(userAnswer);
+    setStreak(s => {
+      const ns = ok ? s + 1 : 0;
+      setScore(sc => sc + (ok ? (ns >= 3 ? 15 : 10) : 0));
+      return ns;
+    });
+
+    // Append result and derive the resting emotion from the updated list
     setResults(prev => {
       const newResults   = [...prev, { q, userAnswer, ok, timedOut: timedOut || blank }];
       const correctCount = newResults.filter(r => r.ok).length;
-      const restEmotion  = getRestEmotion(correctCount);
-
-      // ── KEY FIX: reaction plays first, THEN character settles ──────────
-      const reactionEmotion = (timedOut || blank) ? "skipped" : ok ? "correct" : "wrong";
-      setReaction(reactionEmotion, restEmotion);
-
-      setAnswered(true);
-      setSel(userAnswer);
-      setStreak(s => {
-        const ns = ok ? s + 1 : 0;
-        setScore(sc => sc + (ok ? (ns >= 3 ? 15 : 10) : 0));
-        return ns;
-      });
-
-      const delay = EMOTION_DURATION[reactionEmotion] || 1200;
-      setTimeout(() => {
-        const next = curIdx + 1;
-        if (next >= TOTAL) {
-          // Result screen
-          setTimeout(() => {
-            const finalScore = newResults.reduce((acc, r) => acc + (r.ok ? 10 : 0), 0);
-            if (finalScore / (TOTAL * 10) >= 0.5) audio.playWin();
-            else audio.playLose();
-          }, 100);
-          setPhase("result");
-          // Character holds the resting emotion on the result screen
-          setCurrentEmotion(restEmotion);
-          clearTimeout(emotionTimerRef.current);
-        } else {
-          setCur(next);
-          setSel(null);
-          setFill("");
-          setAnswered(false);
-          committedRef.current = false;
-          // Character is already in restEmotion from the timer above;
-          // no extra setCurrentEmotion needed here — avoids double-set.
-          startTimer(commitMode || mode, curQs, next);
-        }
-      }, delay + 50); // tiny extra buffer so animation fully finishes
-
+      // Store settle emotion so the setTimeout below can read it
+      pendingEmotionRef.current = getRestEmotion(correctCount);
       return newResults;
     });
+
+    // Trigger reaction animation — settle is read from ref after setResults runs
+    // Use a tiny delay so setResults has committed before we read pendingEmotionRef
+    setTimeout(() => {
+      setReaction(reactionEmotion, pendingEmotionRef.current || "idle");
+    }, 0);
+
+    const delay = EMOTION_DURATION[reactionEmotion] || 1200;
+
+    setTimeout(() => {
+      const next = curIdx + 1;
+      if (next >= TOTAL) {
+        // Show result screen
+        setTimeout(() => {
+          setResults(finalResults => {
+            const finalScore = finalResults.reduce((acc, r) => acc + (r.ok ? 10 : 0), 0);
+            if (finalScore / (TOTAL * 10) >= 0.5) audio.playWin();
+            else audio.playLose();
+            return finalResults;
+          });
+        }, 100);
+        setPhase("result");
+        // Settle into final resting emotion on result screen
+        clearTimeout(emotionTimerRef.current);
+        setCurrentEmotion(pendingEmotionRef.current || "idle");
+      } else {
+        // ── Move to next question ─────────────────────────────────────────
+        setCur(next);
+        setSel(null);
+        setFill("");
+        setAnswered(false);
+        committedRef.current = false;
+
+        // ── FIX: always reset to idle so character resumes walking ────────
+        clearTimeout(emotionTimerRef.current);
+        setCurrentEmotion("idle");
+
+        startTimer(commitMode || mode, curQs, next);
+      }
+    }, delay + 50);
   };
 
   const startQuiz = useCallback((selectedMode) => {
