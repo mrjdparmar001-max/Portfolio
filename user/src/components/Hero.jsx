@@ -345,21 +345,6 @@ export default function Hero() {
 
   loadProfile();
 }, []);
-if (loading) {
-  return (
-    <div
-      style={{
-        minHeight: "100vh",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        color: "white"
-      }}
-    >
-      Loading...
-    </div>
-  );
-}
 
   const socialList = useMemo(() => [
     { icon: <FiGithub />, href: socials.github, show: !!socials.github, color: '#e2e8f0' },
