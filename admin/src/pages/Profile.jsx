@@ -92,10 +92,10 @@ export default function Profile() {
       });
       setResume(r.data.resume || '');
       setAvatar(r.data.avatar || '');
-    }).catch(() => {});
+    }).catch(() => { });
 
     // Preload the small model in background so first upload is faster
-    preload({ model: 'small' }).catch(() => {});
+    preload({ model: 'small' }).catch(() => { });
   }, []);
 
   const handleSave = async (e) => {
@@ -181,10 +181,10 @@ export default function Profile() {
   const avatarBtnLabel = bgRemoving
     ? `Removing background… ${bgProgress > 0 ? bgProgress + '%' : ''}`
     : avatarUploading
-    ? 'Uploading…'
-    : avatar
-    ? 'Change Photo'
-    : 'Upload Photo';
+      ? 'Uploading…'
+      : avatar
+        ? 'Change Photo'
+        : 'Upload Photo';
 
   return (
     <div>
@@ -213,13 +213,17 @@ export default function Profile() {
                 {avatar ? (
                   <img
                     key={`${avatar}-${avatarVersion}`}
-                    src={`${BASE}${avatar}?v=${avatarVersion}`}
+                    src={`${BASE}${avatar}?v=${Date.now()}`}
                     alt="Avatar"
                     loading="eager"       // above the fold — load immediately
                     decoding="async"      // decode off main thread
                     width={100}
                     height={100}
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    onError={(e) => {
+                      console.log("Image Failed");
+                      console.log(e.target.src);
+                    }}
                   />
                 ) : (
                   <span style={{ fontSize: 36 }}>🧑‍💻</span>

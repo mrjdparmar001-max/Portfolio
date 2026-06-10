@@ -95,12 +95,12 @@ export const uploadImage = (file) => {
 ========================== */
 export const uploadResume = (file) => {
   const fd = new FormData();
-  fd.append('resume', file);
+  fd.append("resume", file);
 
-  return API.post('/upload/resume', fd, {
+  return api.post("/upload/resume", fd, {
     headers: {
-      'Content-Type': 'multipart/form-data',
-    },
+      Authorization: `Bearer ${localStorage.getItem("token")}`
+    }
   });
 };
 
@@ -109,12 +109,12 @@ export const uploadResume = (file) => {
 ========================== */
 export const uploadAvatar = (file) => {
   const fd = new FormData();
-  fd.append('avatar', file);
+  fd.append("avatar", file);
 
-  return API.post('/upload/avatar', fd, {
+  return api.post("/upload/avatar", fd, {
     headers: {
-      'Content-Type': 'multipart/form-data',
-    },
+      Authorization: `Bearer ${localStorage.getItem("token")}`
+    }
   });
 };
 

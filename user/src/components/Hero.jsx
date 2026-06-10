@@ -207,9 +207,15 @@ const avatarH = tier === 'desktop' ? 520 : 420;
   decoding="async"
   onLoad={() => setImgLoaded(true)}
   onError={(e) => {
-    e.currentTarget.src = FALLBACK_AVATAR;
-    setImgLoaded(true);
-  }}
+
+  console.log("IMAGE FAILED");
+
+  console.log(e.currentTarget.src);
+
+  e.currentTarget.src = FALLBACK_AVATAR;
+
+  setImgLoaded(true);
+}}
   style={{
     width: "100%",
     height: "100%",
@@ -275,6 +281,7 @@ export default function Hero() {
   const { theme } = useTheme();
   const [resumePath, setResumePath] = useState('');
   const [avatarPath, setAvatarPath] = useState('');
+  const [loading, setLoading] = useState(true);
   const [socials, setSocials] = useState({ github: '', linkedin: '', twitter: '', email: '' });
   const [badgesVisible, setBadgesVisible] = useState(false);
 
@@ -284,7 +291,9 @@ export default function Hero() {
   // tier: 'mobile' | 'tablet' | 'desktop'
   const tier = isDesktopUp ? 'desktop' : isTabletUp ? 'tablet' : 'mobile';
 
-  const avatarSrc = avatarPath ? assetUrl(avatarPath) : FALLBACK_AVATAR;
+  const avatarSrc = avatarPath
+  ? `${assetUrl(avatarPath)}?v=${Date.now()}`
+  : FALLBACK_AVATAR;
   const resumeHref = resumePath ? assetUrl(resumePath) : '';
 
   const avatarRef = useRef(null);
@@ -307,14 +316,50 @@ export default function Hero() {
   const handleMouseLeave = useCallback(() => { x.set(0); y.set(0); }, [x, y]);
 
   useEffect(() => {
-    getProfile()
-      .then(r => {
-        setResumePath(r.data.resume || '');
-        setAvatarPath(r.data.avatar || '');
-        setSocials({ github: r.data.github || '', linkedin: r.data.linkedin || '', twitter: r.data.twitter || '', email: r.data.email || '' });
-      })
-      .catch(() => { });
-  }, []);
+  const loadProfile = async () => {
+    try {
+      const r = await getProfile();
+
+      console.log("PROFILE DATA:", r.data);
+
+      setResumePath(r.data.resume || '');
+      setAvatarPath(r.data.avatar || '');
+
+      setSocials({
+        github: r.data.github || '',
+        linkedin: r.data.linkedin || '',
+        twitter: r.data.twitter || '',
+        email: r.data.email || ''
+      });
+
+    } catch (err) {
+
+      console.log("PROFILE ERROR:", err);
+
+    } finally {
+
+      setLoading(false);
+
+    }
+  };
+
+  loadProfile();
+}, []);
+if (loading) {
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        color: "white"
+      }}
+    >
+      Loading...
+    </div>
+  );
+}
 
   const socialList = useMemo(() => [
     { icon: <FiGithub />, href: socials.github, show: !!socials.github, color: '#e2e8f0' },

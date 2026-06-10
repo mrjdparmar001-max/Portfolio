@@ -22,7 +22,13 @@ const resumeUpload = multer({
   storage,
   limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    if (file.mimetype === 'application/pdf') cb(null, true);
+    const allowed = [
+  "application/pdf",
+  "application/x-pdf",
+  "application/octet-stream"
+];
+
+if (allowed.includes(file.mimetype)) cb(null, true);
     else cb(new Error('Only PDF files allowed'));
   },
 });
@@ -32,7 +38,48 @@ router.post('/', auth, imageUpload.single('image'), (req, res) => {
   res.json({ url: `/uploads/${req.file.filename}` });
 });
 
-router.post('/resume', auth, resumeUpload.single('resume'), async (req, res) => {
+router.post(
+  '/resume',
+  auth,
+  resumeUpload.single('resume'),
+  async (req, res) => {
+    try {
+
+      console.log("Resume Upload");
+      console.log(req.file);
+
+      if (!req.file) {
+        return res.status(400).json({
+          message: 'No file uploaded'
+        });
+      }
+
+      const Profile = require('../models/Profile');
+
+      let profile = await Profile.findOne();
+
+      if (!profile) {
+        profile = new Profile();
+      }
+
+      profile.resume = `/uploads/${req.file.filename}`;
+
+      await profile.save();
+
+      res.json({
+        url: profile.resume
+      });
+
+    } catch (err) {
+
+      console.log(err);
+
+      res.status(500).json({
+        message: err.message
+      });
+    }
+  }
+);
   if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
   const Profile = require('../models/Profile');
   let profile = await Profile.findOne();
@@ -40,9 +87,49 @@ router.post('/resume', auth, resumeUpload.single('resume'), async (req, res) => 
   profile.resume = `/uploads/${req.file.filename}`;
   await profile.save();
   res.json({ url: profile.resume });
-});
 
-router.post('/avatar', auth, imageUpload.single('avatar'), async (req, res) => {
+router.post(
+  '/avatar',
+  auth,
+  imageUpload.single('avatar'),
+  async (req, res) => {
+    try {
+
+      console.log("Avatar Upload");
+      console.log(req.file);
+
+      if (!req.file) {
+        return res.status(400).json({
+          message: 'No file uploaded'
+        });
+      }
+
+      const Profile = require('../models/Profile');
+
+      let profile = await Profile.findOne();
+
+      if (!profile) {
+        profile = new Profile();
+      }
+
+      profile.avatar = `/uploads/${req.file.filename}`;
+
+      await profile.save();
+
+      res.json({
+        url: profile.avatar
+      });
+
+    } catch (err) {
+
+      console.log(err);
+
+      res.status(500).json({
+        message: err.message
+      });
+    }
+  }
+);
   if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
   const Profile = require('../models/Profile');
   let profile = await Profile.findOne();
@@ -50,6 +137,4 @@ router.post('/avatar', auth, imageUpload.single('avatar'), async (req, res) => {
   profile.avatar = `/uploads/${req.file.filename}`;
   await profile.save();
   res.json({ url: profile.avatar });
-});
-
 module.exports = router;
