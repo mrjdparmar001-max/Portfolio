@@ -349,7 +349,7 @@ function drawCharacter(ctx, emotion, frame, blinking, dir, jumpY, dancePhase, ou
 function CharacterCanvas({ phase, answered, emotion, containerRef }) {
   const canvasRef = useRef(null);
   const stateRef  = useRef({
-    cx: 120, cy: 200, vx: 0.7, vy: 0.55, dir: 1,
+    cx: 160, cy: 300, vx: 0.7, vy: 0.55, dir: 1,
     frame: 0, blink: 0, blinking: false, emTimer: 0,
     jumpY: 0, shakeX: 0, dancePhase: 0,
     outfitIdx: 0, outfitChangedAt: Date.now(),
@@ -381,7 +381,8 @@ function CharacterCanvas({ phase, answered, emotion, containerRef }) {
     function getContainerSize() {
       const el = containerRef?.current;
       if (!el) return { w: window.innerWidth, h: window.innerHeight };
-      return { w: el.offsetWidth, h: el.offsetHeight };
+      // Use clientHeight (visible viewport height) so character stays on screen
+      return { w: el.offsetWidth, h: Math.max(el.clientHeight, window.innerHeight) };
     }
 
     function getQCardBounds() {
@@ -396,12 +397,14 @@ function CharacterCanvas({ phase, answered, emotion, containerRef }) {
     function steer() {
       const cb = getQCardBounds();
       if (!cb) return;
-      const PAD = 70, mcx = cb.x + cb.w / 2, mcy = cb.y + cb.h / 2;
+      // Reduced PAD so the avoidance zone is smaller — prevents corner-trapping
+      const PAD = 50, mcx = cb.x + cb.w / 2, mcy = cb.y + cb.h / 2;
       const hw  = cb.w / 2 + PAD, hh = cb.h / 2 + PAD;
       const dx  = s.cx - mcx, dy = s.cy - mcy;
       if (Math.abs(dx) < hw && Math.abs(dy) < hh) {
-        if (Math.abs(dx) / hw < Math.abs(dy) / hh) s.vy += (dy > 0 ? 1 : -1) * 0.10;
-        else s.vx += (dx > 0 ? 1 : -1) * 0.10;
+        // Gentler push so character doesn't accelerate into corners
+        if (Math.abs(dx) / hw < Math.abs(dy) / hh) s.vy += (dy > 0 ? 1 : -1) * 0.06;
+        else s.vx += (dx > 0 ? 1 : -1) * 0.06;
       }
     }
 
@@ -410,14 +413,22 @@ function CharacterCanvas({ phase, answered, emotion, containerRef }) {
       const P = 28;
       steer();
       s.cx += s.vx; s.cy += s.vy;
+
+      // ── FIX: use viewport-relative top boundary so character stays visible
+      // regardless of scroll. Min Y is just below the navbar (~80px from top).
+      const minY = 80;
       if (s.cx < P)     { s.cx = P;     s.vx =  Math.abs(s.vx) + 0.05; }
       if (s.cx > W - P) { s.cx = W - P; s.vx = -(Math.abs(s.vx) + 0.05); }
-      if (s.cy < P + 60){ s.cy = P + 60; s.vy = Math.abs(s.vy) + 0.05; }
+      if (s.cy < minY)  { s.cy = minY;  s.vy =  Math.abs(s.vy) + 0.05; }
       if (s.cy > H - P) { s.cy = H - P; s.vy = -(Math.abs(s.vy) + 0.05); }
+
+      // ── FIX: tighter speed cap so character never accelerates uncontrollably
       const sp = Math.hypot(s.vx, s.vy);
-      if (sp > 1.0) { s.vx = s.vx / sp * 1.0; s.vy = s.vy / sp * 1.0; }
-      if (sp < 0.5) { s.vx = s.vx / sp * 0.5; s.vy = s.vy / sp * 0.5; }
-      if (Math.random() < 0.004) { s.vx += (Math.random() - 0.5) * 0.25; s.vy += (Math.random() - 0.5) * 0.25; }
+      if (sp > 0.9) { s.vx = s.vx / sp * 0.9; s.vy = s.vy / sp * 0.9; }
+      if (sp < 0.45) { s.vx = s.vx / sp * 0.45; s.vy = s.vy / sp * 0.45; }
+
+      // Random direction nudges (kept small)
+      if (Math.random() < 0.004) { s.vx += (Math.random() - 0.5) * 0.2; s.vy += (Math.random() - 0.5) * 0.2; }
       if (s.vx >  0.08) s.dir =  1;
       if (s.vx < -0.08) s.dir = -1;
     }
@@ -443,9 +454,17 @@ function CharacterCanvas({ phase, answered, emotion, containerRef }) {
         s.frozenX = null;
         s.frozenY = null;
 
-        // Walk freely when idle/dancing/sad; pause only during reaction animations
+        // Walk freely when idle/sad/dancing; pause only during reaction animations
         const reacting = e === "correct" || e === "wrong" || e === "skipped";
-        if (!reacting) walkStep();
+        if (!reacting) {
+          walkStep();
+          // ── Anti-stuck escape: if velocity is near zero, give a random kick ──
+          const sp = Math.hypot(s.vx, s.vy);
+          if (sp < 0.2) {
+            s.vx = (Math.random() - 0.5) * 1.0;
+            s.vy = (Math.random() - 0.5) * 1.0;
+          }
+        }
       }
 
       s.frame++;
