@@ -12,10 +12,58 @@ const fields = [
 
 const BASE = import.meta.env.VITE_API_URL;
 
+// ─── Helper: PNG Blob → WebP Blob ────────────────────────────────────────────
+// Re-encodes the transparent PNG (from bg removal) to WebP for smaller file
+// size and faster browser cache hits on cold loads.
+function pngBlobToWebP(pngBlob) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(pngBlob);
+
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      URL.revokeObjectURL(objectUrl);
+
+      // Check WebP support; fall back to PNG if not supported
+      const testCanvas = document.createElement('canvas');
+      testCanvas.width = 1;
+      testCanvas.height = 1;
+      const supportsWebP = testCanvas.toDataURL('image/webp').startsWith('data:image/webp');
+
+      canvas.toBlob(
+        (blob) => {
+          if (blob) resolve({ blob, mimeType: supportsWebP ? 'image/webp' : 'image/png' });
+          else reject(new Error('Image conversion failed'));
+        },
+        supportsWebP ? 'image/webp' : 'image/png',
+        0.88 // quality — good balance of size vs clarity
+      );
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error('Image load failed during conversion'));
+    };
+
+    img.src = objectUrl;
+  });
+}
+
 export default function Profile() {
-  const [form, setForm] = useState({ email: '', phone: '', location: '', github: '', linkedin: '', twitter: '', yearsExperience: 3, expYears: 3, expMonths: 0, expDays: 0, happyClients: 20, awardsWon: 5 });
+  const [form, setForm] = useState({
+    email: '', phone: '', location: '',
+    github: '', linkedin: '', twitter: '',
+    yearsExperience: 3, expYears: 3, expMonths: 0, expDays: 0,
+    happyClients: 20, awardsWon: 5,
+  });
   const [resume, setResume] = useState('');
   const [avatar, setAvatar] = useState('');
+  const [avatarVersion, setAvatarVersion] = useState(Date.now()); // cache-buster
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(false);
   const [resumeUploading, setResumeUploading] = useState(false);
@@ -28,10 +76,23 @@ export default function Profile() {
 
   useEffect(() => {
     getProfile().then(r => {
-      setForm({ email: r.data.email, phone: r.data.phone, location: r.data.location, github: r.data.github || '', linkedin: r.data.linkedin || '', twitter: r.data.twitter || '', yearsExperience: r.data.yearsExperience ?? 3, expYears: r.data.expYears ?? r.data.yearsExperience ?? 3, expMonths: r.data.expMonths ?? 0, expDays: r.data.expDays ?? 0, happyClients: r.data.happyClients ?? 20, awardsWon: r.data.awardsWon ?? 5 });
+      setForm({
+        email: r.data.email,
+        phone: r.data.phone,
+        location: r.data.location,
+        github: r.data.github || '',
+        linkedin: r.data.linkedin || '',
+        twitter: r.data.twitter || '',
+        yearsExperience: r.data.yearsExperience ?? 3,
+        expYears: r.data.expYears ?? r.data.yearsExperience ?? 3,
+        expMonths: r.data.expMonths ?? 0,
+        expDays: r.data.expDays ?? 0,
+        happyClients: r.data.happyClients ?? 20,
+        awardsWon: r.data.awardsWon ?? 5,
+      });
       setResume(r.data.resume || '');
       setAvatar(r.data.avatar || '');
-    }).catch(() => { });
+    }).catch(() => {});
 
     // Preload the small model in background so first upload is faster
     preload({ model: 'small' }).catch(() => {});
@@ -70,33 +131,36 @@ export default function Profile() {
     if (!file) return;
 
     try {
-      // Step 1: Remove background using small (fast) model
+      // ── Step 1: Remove background (accepts any image format) ─────────────
       setBgRemoving(true);
       setBgProgress(0);
 
       const bgRemovedBlob = await removeBackground(file, {
         model: 'small',
-        output: { format: 'image/png', quality: 0.9 },
+        output: { format: 'image/png', quality: 1 }, // full quality before re-encode
         progress: (key, current, total) => {
           if (total > 0) setBgProgress(Math.round((current / total) * 100));
         },
       });
+      setBgRemoving(false);
 
-      // Step 2: Convert Blob → File (uploadAvatar expects a File object)
-      const processedFile = new File(
-        [bgRemovedBlob],
-        file.name.replace(/\.[^.]+$/, '.png'),
-        { type: 'image/png' }
+      // ── Step 2: Re-encode to WebP (smaller file, faster cold load) ────────
+      const { blob: webpBlob, mimeType } = await pngBlobToWebP(bgRemovedBlob);
+      const ext = mimeType === 'image/webp' ? '.webp' : '.png';
+
+      // ── Step 3: Upload ────────────────────────────────────────────────────
+      setAvatarUploading(true);
+      const uploadFile = new File(
+        [webpBlob],
+        file.name.replace(/\.[^.]+$/, ext),
+        { type: mimeType }
       );
 
-      // Step 3: Upload processed image
-      setBgRemoving(false);
-      setAvatarUploading(true);
+      const res = await uploadAvatar(uploadFile);
 
-      const res = await uploadAvatar(processedFile);
-
-      // Step 4: Update avatar — reflects on both admin and user site
+      // ── Step 4: Update state — bump version to bust browser cache ─────────
       setAvatar(res.data.url);
+      setAvatarVersion(Date.now());
       setAvatarStatus('success');
     } catch (error) {
       console.error('Avatar processing failed:', error);
@@ -105,11 +169,22 @@ export default function Profile() {
       setBgRemoving(false);
       setAvatarUploading(false);
       setBgProgress(0);
-      // Reset input so same file can be re-selected
       if (avatarInputRef.current) avatarInputRef.current.value = '';
       setTimeout(() => setAvatarStatus(''), 4000);
     }
   };
+
+  // Busy state covers both bg removal and uploading
+  const avatarBusy = avatarUploading || bgRemoving;
+
+  // Label shown on the upload button
+  const avatarBtnLabel = bgRemoving
+    ? `Removing background… ${bgProgress > 0 ? bgProgress + '%' : ''}`
+    : avatarUploading
+    ? 'Uploading…'
+    : avatar
+    ? 'Change Photo'
+    : 'Upload Photo';
 
   return (
     <div>
@@ -122,7 +197,9 @@ export default function Profile() {
         {/* ── Avatar Upload Card ── */}
         <div style={{ maxWidth: 520, background: '#12121a', border: '1px solid #2a2a3e', borderRadius: 20, padding: 36, marginBottom: 32 }}>
           <h2 style={{ color: '#fff', fontSize: 18, fontWeight: 700, marginBottom: 6 }}>Profile Photo</h2>
-          <p style={{ color: '#a0a0b0', fontSize: 13, marginBottom: 24 }}>This photo is shown on the user-facing portfolio hero section.</p>
+          <p style={{ color: '#a0a0b0', fontSize: 13, marginBottom: 24 }}>
+            This photo is shown on the user-facing portfolio hero section.
+          </p>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 28 }}>
             {/* Preview */}
@@ -135,9 +212,13 @@ export default function Profile() {
               }}>
                 {avatar ? (
                   <img
-                    key={avatar}
-                    src={`${BASE}${avatar}`}
+                    key={`${avatar}-${avatarVersion}`}
+                    src={`${BASE}${avatar}?v=${avatarVersion}`}
                     alt="Avatar"
+                    loading="eager"       // above the fold — load immediately
+                    decoding="async"      // decode off main thread
+                    width={100}
+                    height={100}
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   />
                 ) : (
@@ -149,20 +230,26 @@ export default function Profile() {
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
                 onClick={() => avatarInputRef.current.click()}
-                disabled={avatarUploading || bgRemoving}
+                disabled={avatarBusy}
                 style={{
                   position: 'absolute', bottom: 0, right: 0,
                   width: 30, height: 30, borderRadius: '50%',
                   background: 'linear-gradient(135deg, #6c63ff, #ff6584)',
                   border: '2px solid #12121a',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  cursor: (avatarUploading || bgRemoving) ? 'not-allowed' : 'pointer',
+                  cursor: avatarBusy ? 'not-allowed' : 'pointer',
                   color: '#fff', fontSize: 13,
                 }}
               >
                 <FiCamera />
               </motion.button>
-              <input ref={avatarInputRef} type="file" accept="image/*" onChange={handleAvatarUpload} style={{ display: 'none' }} />
+              <input
+                ref={avatarInputRef}
+                type="file"
+                accept="image/*"  // any format: JPG, PNG, WebP, GIF, AVIF, etc.
+                onChange={handleAvatarUpload}
+                style={{ display: 'none' }}
+              />
             </div>
 
             <div style={{ flex: 1 }}>
@@ -170,24 +257,18 @@ export default function Profile() {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => avatarInputRef.current.click()}
-                disabled={avatarUploading || bgRemoving}
+                disabled={avatarBusy}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 8,
                   background: 'transparent', border: '1px dashed #6c63ff',
                   borderRadius: 12, padding: '12px 20px',
                   color: '#6c63ff', fontSize: 14, fontWeight: 600,
-                  cursor: (avatarUploading || bgRemoving) ? 'not-allowed' : 'pointer',
-                  opacity: (avatarUploading || bgRemoving) ? 0.6 : 1, width: '100%', justifyContent: 'center',
+                  cursor: avatarBusy ? 'not-allowed' : 'pointer',
+                  opacity: avatarBusy ? 0.6 : 1, width: '100%', justifyContent: 'center',
                 }}
               >
                 <FiUpload />
-                {bgRemoving
-                  ? `Removing background… ${bgProgress > 0 ? bgProgress + '%' : ''}`
-                  : avatarUploading
-                  ? 'Uploading…'
-                  : avatar
-                  ? 'Change Photo'
-                  : 'Upload Photo'}
+                {avatarBtnLabel}
               </motion.button>
 
               {/* Progress bar during bg removal */}
@@ -204,19 +285,19 @@ export default function Profile() {
               )}
 
               <p style={{ color: '#a0a0b0', fontSize: 12, marginTop: 8 }}>
-                Background is removed automatically before saving.
+                Any format (JPG, PNG, WebP, GIF…) — background removed &amp; saved as WebP.
               </p>
             </div>
           </div>
 
           {avatarStatus === 'success' && (
             <div style={{ marginTop: 16, background: '#43e97b20', border: '1px solid #43e97b40', borderRadius: 10, padding: '10px 14px', color: '#43e97b', fontSize: 14 }}>
-              ✅ Background removed & photo updated on the user site!
+              ✅ Background removed &amp; photo updated on the user site!
             </div>
           )}
           {avatarStatus === 'error' && (
             <div style={{ marginTop: 16, background: '#ff658420', border: '1px solid #ff658440', borderRadius: 10, padding: '10px 14px', color: '#ff6584', fontSize: 14 }}>
-              ❌ Failed. Try a clearer photo (JPG/PNG, max 5MB).
+              ❌ Failed. Try a clearer photo (any image format, max 5MB).
             </div>
           )}
         </div>
