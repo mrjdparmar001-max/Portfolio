@@ -37,18 +37,16 @@ storage,
 limits: { fileSize: 10 * 1024 * 1024 },
 fileFilter: (req, file, cb) => {
 const allowed = [
-'application/pdf',
-'application/x-pdf',
-'application/octet-stream',
+  'application/pdf',
+  'application/x-pdf',
+  'application/octet-stream',
 ];
 
-```
 if (allowed.includes(file.mimetype)) {
   cb(null, true);
 } else {
   cb(new Error('Only PDF files allowed'));
 }
-```
 
 },
 });
@@ -74,7 +72,7 @@ try {
 console.log('Resume Upload');
 console.log(req.file);
 
-```
+
   if (!req.file) {
     return res.status(400).json({
       message: 'No file uploaded',
@@ -87,7 +85,7 @@ console.log(req.file);
     profile = new Profile();
   }
 
-  profile.resume = `/uploads/${req.file.filename}`;
+ profile.resume = "/uploads/" + req.file.filename;
 
   await profile.save();
 
@@ -101,7 +99,6 @@ console.log(req.file);
     message: err.message,
   });
 }
-```
 
 }
 );
@@ -129,7 +126,7 @@ console.log('Body:', req.body);
     profile = new Profile();
   }
 
-  profile.avatar = `/uploads/${req.file.filename}`;
+  profile.avatar = "/uploads/" + req.file.filename;
 
   await profile.save();
 
