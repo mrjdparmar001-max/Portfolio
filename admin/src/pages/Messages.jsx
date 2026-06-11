@@ -19,14 +19,28 @@ export default function Messages({ onUpdate }) {
     if (!msg.read) { await markRead(msg._id); load(); }
   };
 
-  const handleReply = async (id) => {
-    if (!replyText[id]?.trim()) return;
+ const handleReply = async (id) => {
+  if (!replyText[id]?.trim()) return;
+
+  try {
     setSending(id);
+
     await replyMessage(id, replyText[id]);
-    setReplyText({ ...replyText, [id]: '' });
+
+    setReplyText(prev => ({
+      ...prev,
+      [id]: '',
+    }));
+
+    await load();
+
+  } catch (err) {
+    console.error("Reply Error:", err);
+    alert(err.response?.data?.message || "Reply failed");
+  } finally {
     setSending(null);
-    load();
-  };
+  }
+};
 
   const handleDelete = async (id) => {
     if (!confirm('Delete this message?')) return;

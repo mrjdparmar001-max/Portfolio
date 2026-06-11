@@ -85,12 +85,9 @@ router.put('/:id/reply', auth, async (req, res) => {
   console.log("EMAIL SENT TO:", msg.email);
 
 } catch (mailError) {
-  console.error("EMAIL ERROR:", mailError);
+  console.error("EMAIL ERROR:", mailError.message);
 
-  return res.status(500).json({
-    success: false,
-    message: "Email sending failed",
-  });
+  // Do not return 500 here
 }
 
     res.json({
