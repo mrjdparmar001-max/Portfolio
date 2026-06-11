@@ -104,47 +104,45 @@ console.log(req.file);
 );
 
 router.post(
-'/avatar',
-auth,
-imageUpload.single('avatar'),
-async (req, res) => {
-try {
-console.log('========== AVATAR UPLOAD ==========');
-console.log('File:', req.file);
-console.log('Body:', req.body);
+  '/avatar',
+  auth,
+  imageUpload.single('avatar'),
+  async (req, res) => {
+    try {
+      console.log('========== AVATAR UPLOAD ==========');
+      console.log('File:', req.file);
+      console.log('Body:', req.body);
 
-```
-  if (!req.file) {
-    return res.status(400).json({
-      message: 'No file uploaded',
-    });
+      if (!req.file) {
+        return res.status(400).json({
+          message: 'No file uploaded',
+        });
+      }
+
+      let profile = await Profile.findOne();
+
+      if (!profile) {
+        profile = new Profile();
+      }
+
+      profile.avatar = "/uploads/" + req.file.filename;
+
+      await profile.save();
+
+      res.json({
+        url: profile.avatar,
+      });
+
+    } catch (err) {
+      console.error('AVATAR ERROR');
+      console.error(err);
+      console.error(err.stack);
+
+      res.status(500).json({
+        message: err.message,
+      });
+    }
   }
-
-  let profile = await Profile.findOne();
-
-  if (!profile) {
-    profile = new Profile();
-  }
-
-  profile.avatar = "/uploads/" + req.file.filename;
-
-  await profile.save();
-
-  res.json({
-    url: profile.avatar,
-  });
-} catch (err) {
-  console.error('AVATAR ERROR');
-  console.error(err);
-  console.error(err.stack);
-
-  res.status(500).json({
-    message: err.message,
-  });
-}
-```
-
-}
 );
 
 module.exports = router;
