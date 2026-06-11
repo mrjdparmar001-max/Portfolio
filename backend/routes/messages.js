@@ -85,9 +85,9 @@ router.put('/:id/reply', auth, async (req, res) => {
   console.log("EMAIL SENT TO:", msg.email);
 
 } catch (mailError) {
-  console.error("EMAIL ERROR:", mailError.message);
-
-  // Do not return 500 here
+  console.error("EMAIL ERROR:");
+  console.error(mailError);
+  console.error(mailError.message);
 }
 
     res.json({
@@ -96,11 +96,16 @@ router.put('/:id/reply', auth, async (req, res) => {
       data: msg,
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: err.message });
-  }
-});
+  console.error("REPLY ROUTE ERROR:");
+  console.error(err);
 
+  return res.status(500).json({
+    success: false,
+    message: err.message,
+    stack: err.stack,
+  });
+}
+}); 
 router.delete('/:id', auth, async (req, res) => {
   try {
     await Message.findByIdAndDelete(req.params.id);
