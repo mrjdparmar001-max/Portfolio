@@ -137,8 +137,11 @@ export default function Messages({ onUpdate }) {
                         <motion.button
                           whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.95 }}
-                          onClick={() => handleReply(msg._id)}
-                          disabled={sending === msg._id}
+                            onClick={() => {
+    console.log("SEND CLICKED");
+    handleReply(msg._id);
+  }}
+                          // disabled={sending === msg._id}
                           style={{
                             background: 'linear-gradient(135deg, #6c63ff, #ff6584)',
                             border: 'none', borderRadius: 10, padding: '12px 20px',
