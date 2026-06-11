@@ -3,13 +3,18 @@ const multer = require('multer');
 const path = require('path');
 const auth = require('../middleware/auth');
 const Profile = require('../models/Profile');
+const fs = require('fs');
 
 const router = express.Router();
+const uploadPath = path.join(__dirname, '../uploads');
 
+if (!fs.existsSync(uploadPath)) {
+  fs.mkdirSync(uploadPath, { recursive: true });
+}
 const storage = multer.diskStorage({
-destination: (req, file, cb) => {
-cb(null, path.join(__dirname, '../uploads'));
-},
+  destination: (req, file, cb) => {
+    cb(null, uploadPath);
+  },
 filename: (req, file, cb) => {
 cb(null, `${Date.now()}-${file.originalname.replace(/\s+/g, '_')}`);
 },
@@ -107,8 +112,9 @@ auth,
 imageUpload.single('avatar'),
 async (req, res) => {
 try {
-console.log('Avatar Upload');
-console.log(req.file);
+console.log('========== AVATAR UPLOAD ==========');
+console.log('File:', req.file);
+console.log('Body:', req.body);
 
 ```
   if (!req.file) {
@@ -131,7 +137,9 @@ console.log(req.file);
     url: profile.avatar,
   });
 } catch (err) {
+  console.error('AVATAR ERROR');
   console.error(err);
+  console.error(err.stack);
 
   res.status(500).json({
     message: err.message,
