@@ -6,7 +6,9 @@ const nodemailer = require('nodemailer');
 const router = express.Router();
 
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  host: "smtp.gmail.com",
+  port: 587,
+  secure: false,
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
@@ -57,54 +59,59 @@ router.put('/:id/reply', auth, async (req, res) => {
     const msg = await Message.findById(req.params.id);
 
     if (!msg) {
-      return res.status(404).json({ message: 'Message not found' });
+      return res.status(404).json({
+        success: false,
+        message: 'Message not found',
+      });
     }
 
+    // Save reply
     msg.adminReply = req.body.reply;
     msg.replied = true;
     msg.read = true;
 
     await msg.save();
 
+    // Try sending email
     try {
-  await transporter.sendMail({
-    from: process.env.EMAIL_USER,
-    to: msg.email,
-    subject: `Reply: ${msg.subject || 'Your Message'}`,
-    html: `
-      <div style="font-family: Arial, sans-serif;">
-        <h2>Hello ${msg.name},</h2>
-        <p>${req.body.reply}</p>
-        <br/>
-        <p>Best Regards,</p>
-        <p><strong>Jaydip Parmar</strong></p>
-      </div>
-    `,
-  });
+      await transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: msg.email,
+        subject: `Reply: ${msg.subject || 'Your Message'}`,
+        html: `
+          <div style="font-family: Arial, sans-serif;">
+            <h2>Hello ${msg.name},</h2>
+            <p>${req.body.reply}</p>
+            <br />
+            <p>Best Regards,</p>
+            <p><strong>Jaydip Parmar</strong></p>
+          </div>
+        `,
+      });
 
-  console.log("EMAIL SENT TO:", msg.email);
+      console.log("EMAIL SENT:", msg.email);
 
-} catch (mailError) {
-  console.error("EMAIL ERROR:");
-  console.error(mailError);
-  console.error(mailError.message);
-}
+    } catch (mailError) {
+      console.error("EMAIL ERROR:", mailError.message);
 
-    res.json({
+      // Email failed, but reply is already saved.
+      // Do NOT return 500.
+    }
+
+    return res.status(200).json({
       success: true,
-      message: 'Reply sent successfully',
+      message: "Reply saved successfully",
       data: msg,
     });
-  } catch (err) {
-  console.error("REPLY ROUTE ERROR:");
-  console.error(err);
 
-  return res.status(500).json({
-    success: false,
-    message: err.message,
-    stack: err.stack,
-  });
-}
+  } catch (err) {
+    console.error("REPLY ERROR:", err);
+
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
 }); 
 router.delete('/:id', auth, async (req, res) => {
   try {

@@ -36,7 +36,6 @@ export default function Messages({ onUpdate }) {
 
   } catch (err) {
     console.error("Reply Error:", err);
-    alert(err.response?.data?.message || "Reply failed");
   } finally {
     setSending(null);
   }
