@@ -59,6 +59,11 @@ router.put('/:id/read', auth, async (req, res) => {
 router.put('/:id/reply', auth, async (req, res) => {
   try {
     const msg = await Message.findById(req.params.id);
+    console.log("=================================");
+console.log("REPLY ROUTE HIT");
+console.log("MESSAGE ID:", req.params.id);
+console.log("EMAIL:", msg?.email);
+console.log("REPLY:", req.body.reply);
 
     if (!msg) {
       return res.status(404).json({
@@ -76,29 +81,33 @@ router.put('/:id/reply', auth, async (req, res) => {
 
     // Try sending email
     try {
-      await transporter.sendMail({
-        from: process.env.EMAIL_USER,
-        to: msg.email,
-        subject: `Reply: ${msg.subject || 'Your Message'}`,
-        html: `
-          <div style="font-family: Arial, sans-serif;">
-            <h2>Hello ${msg.name},</h2>
-            <p>${req.body.reply}</p>
-            <br />
-            <p>Best Regards,</p>
-            <p><strong>Jaydip Parmar</strong></p>
-          </div>
-        `,
-      });
+  console.log("=================================");
+  console.log("SENDING EMAIL TO:", msg.email);
+  console.log("REPLY TEXT:", req.body.reply);
 
-      console.log("EMAIL SENT:", msg.email);
+  const info = await transporter.sendMail({
+    from: `"Jaydip Parmar" <${process.env.EMAIL_USER}>`,
+    to: msg.email,
+    subject: `Reply: ${msg.subject || "Your Message"}`,
+    html: `
+      <h2>Hello ${msg.name}</h2>
+      <p>${req.body.reply}</p>
 
-    } catch (mailError) {
-      console.error("EMAIL ERROR:", mailError.message);
+      <br/>
 
-      // Email failed, but reply is already saved.
-      // Do NOT return 500.
-    }
+      <p>Regards,</p>
+      <b>Jaydip Parmar</b>
+    `,
+  });
+
+  console.log("EMAIL SENT SUCCESS");
+  console.log("MESSAGE ID:", info.messageId);
+  console.log("RESPONSE:", info.response);
+
+} catch (mailError) {
+  console.error("EMAIL ERROR:");
+  console.error(mailError);
+}
 
     return res.status(200).json({
       success: true,
