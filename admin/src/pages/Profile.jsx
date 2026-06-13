@@ -62,9 +62,7 @@
       yearsExperience: 3, expYears: 3, expMonths: 0, expDays: 0,
       happyClients: 20, awardsWon: 5,
     });
-    const [resume, setResume] = useState('');
-    const [resumeName, setResumeName] = useState('');
-    const [avatar, setAvatar] = useState('');
+    
     const [avatarVersion, setAvatarVersion] = useState(Date.now()); // cache-buster
     const [status, setStatus] = useState('');
     const [loading, setLoading] = useState(false);
