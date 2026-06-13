@@ -3,6 +3,8 @@ import { motion } from 'framer-motion';
 import { FiMail, FiPhone, FiMapPin, FiSave, FiUpload, FiFileText, FiExternalLink, FiCamera, FiGithub, FiLinkedin, FiTwitter, FiTrendingUp, FiSmile, FiAward } from 'react-icons/fi';
 import { getProfile, updateProfile, uploadResume, uploadAvatar } from '../api/api';
 import { removeBackground, preload } from '@imgly/background-removal';
+const [resume, setResume] = useState('');
+const [resumeName, setResumeName] = useState('');
 
 const fields = [
   { key: 'email', label: 'Email', icon: <FiMail />, type: 'email', placeholder: 'admin@example.com' },
@@ -90,8 +92,9 @@ export default function Profile() {
         happyClients: r.data.happyClients ?? 20,
         awardsWon: r.data.awardsWon ?? 5,
       });
-      setResume(r.data.resume || '');
-      setAvatar(r.data.avatar || '');
+     setResume(r.data.resume || '');
+setResumeName(r.data.resumeName || '');
+setAvatar(r.data.avatar || '');
     }).catch(() => { });
 
     // Preload the small model in background so first upload is faster
@@ -118,6 +121,7 @@ export default function Profile() {
     try {
       const res = await uploadResume(file);
       setResume(res.data.url);
+      setResumeName(file.name);
       setResumeStatus('success');
     } catch {
       setResumeStatus('error');
