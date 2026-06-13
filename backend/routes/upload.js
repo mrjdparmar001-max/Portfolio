@@ -101,6 +101,7 @@ const result = await uploadToCloudinary(
 );
 
 profile.resume = result.secure_url;
+profile.resumeName = req.file.originalname;
 
   await profile.save();
 

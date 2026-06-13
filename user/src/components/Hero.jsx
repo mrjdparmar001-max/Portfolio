@@ -276,6 +276,7 @@ function useMediaQuery(query) {
 export default function Hero() {
   const { theme } = useTheme();
   const [resumePath, setResumePath] = useState('');
+  const [resumeName, setResumeName] = useState('');
   const [avatarPath, setAvatarPath] = useState('');
   const [loading, setLoading] = useState(true);
   const [socials, setSocials] = useState({ github: '', linkedin: '', twitter: '', email: '' });
@@ -318,6 +319,7 @@ export default function Hero() {
 console.log("AVATAR URL:", r.data.avatar);
 console.log("RESUME URL:", r.data.resume);
       setResumePath(r.data.resume || '');
+      setResumeName(r.data.resumeName || 'Resume.pdf');
       setAvatarPath(r.data.avatar || '');
 
       setSocials({

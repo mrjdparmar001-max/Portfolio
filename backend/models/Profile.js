@@ -5,6 +5,11 @@ const profileSchema = new mongoose.Schema({
   phone: { type: String, default: '+91 98765 43210' },
   location: { type: String, default: 'Gujarat, India' },
   resume: { type: String, default: '' },
+
+resumeName: {
+  type: String,
+  default: ''
+},
   avatar: { type: String, default: '' },
   github: { type: String, default: '' },
   linkedin: { type: String, default: '' },
