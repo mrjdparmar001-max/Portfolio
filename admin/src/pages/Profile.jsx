@@ -64,6 +64,9 @@
     });
     
     const [avatarVersion, setAvatarVersion] = useState(Date.now()); // cache-buster
+    const [resume, setResume] = useState('');
+const [resumeName, setResumeName] = useState('');
+const [avatar, setAvatar] = useState('');
     const [status, setStatus] = useState('');
     const [loading, setLoading] = useState(false);
     const [resumeUploading, setResumeUploading] = useState(false);
