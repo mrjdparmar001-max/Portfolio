@@ -3,16 +3,16 @@ const multer = require('multer');
 const auth = require('../middleware/auth');
 const Profile = require('../models/Profile');
 const cloudinary = require("../config/cloudinary");
-const { CloudinaryStorage } = require("multer-storage-cloudinary");
+const multer = require("multer");
+
+const storage = multer.memoryStorage();
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 }
+});
 
 const router = express.Router();
-const storage = new CloudinaryStorage({
-  cloudinary,
-  params: {
-    folder: "portfolio",
-    resource_type: "auto",
-  },
-});
 
 const imageUpload = multer({
 storage,
