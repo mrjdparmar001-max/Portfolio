@@ -1,5 +1,7 @@
 const express = require('express');
 const multer = require('multer');
+const cloudinaryStorage = require("multer-storage-cloudinary");
+console.log("MULTER CLOUDINARY:", cloudinaryStorage);
 const auth = require('../middleware/auth');
 const Profile = require('../models/Profile');
 const cloudinary = require("../config/cloudinary");
