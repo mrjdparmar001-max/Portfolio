@@ -213,7 +213,7 @@ export default function Profile() {
                 {avatar ? (
                   <img
                     key={`${avatar}-${avatarVersion}`}
-                    src={`${BASE}${avatar}?v=${Date.now()}`}
+                    src={`${avatar}?v=${Date.now()}`}
                     alt="Avatar"
                     loading="eager"       // above the fold — load immediately
                     decoding="async"      // decode off main thread
@@ -521,8 +521,17 @@ export default function Profile() {
               <span style={{ color: '#fff', fontSize: 14, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {resume.split('/').pop()}
               </span>
-              <a href={BASE + resume} target="_blank" rel="noreferrer"
-                style={{ color: '#6c63ff', fontSize: 18, display: 'flex', alignItems: 'center' }}>
+              <a
+                href={resume}
+                target="_blank"
+                rel="noreferrer"
+                style={{
+                  color: '#6c63ff',
+                  fontSize: 18,
+                  display: 'flex',
+                  alignItems: 'center'
+                }}
+              >
                 <FiExternalLink />
               </a>
             </div>

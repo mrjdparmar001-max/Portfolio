@@ -9,10 +9,7 @@ const BASE = (import.meta.env.VITE_BACKEND_URL || '').replace(/\/$/, '');
 const FALLBACK_AVATAR =
   'https://api.dicebear.com/9.x/avataaars/svg?seed=JaydipParmar&backgroundColor=transparent&style=transparent&accessories=prescription02&clothing=blazerAndShirt&eyes=happy&eyebrows=default&facialHair=beardMedium&facialHairColor=2c1b18&hair=short02&hairColor=2c1b18&skinColor=f8d25c';
 
-function assetUrl(path) {
-  if (!path) return '';
-  return `${BASE}/${path.replace(/^\//, '')}`;
-}
+
 
 const PARTICLE_DATA = Array.from({ length: 5 }, (_, i) => ({
   size: 3 + (i % 4) * 1.5,
@@ -290,10 +287,8 @@ export default function Hero() {
   // tier: 'mobile' | 'tablet' | 'desktop'
   const tier = isDesktopUp ? 'desktop' : isTabletUp ? 'tablet' : 'mobile';
 
-  const avatarSrc = avatarPath
-  ? `${assetUrl(avatarPath)}?v=${Date.now()}`
-  : FALLBACK_AVATAR;
-  const resumeHref = resumePath ? assetUrl(resumePath) : '';
+  const avatarSrc = avatarPath || FALLBACK_AVATAR;
+ const resumeHref = resumePath || '';
 
   const avatarRef = useRef(null);
   const x = useMotionValue(0);
