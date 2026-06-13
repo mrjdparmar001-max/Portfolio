@@ -1,23 +1,18 @@
 const express = require('express');
 const multer = require('multer');
-const path = require('path');
 const auth = require('../middleware/auth');
 const Profile = require('../models/Profile');
-const fs = require('fs');
+const cloudinary = require("../config/cloudinary");
+const { CloudinaryStorage } = require("multer-storage-cloudinary");
 
 const router = express.Router();
-const uploadPath = path.join(__dirname, '../uploads');
-
-if (!fs.existsSync(uploadPath)) {
-  fs.mkdirSync(uploadPath, { recursive: true });
-}
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadPath);
-  },
-filename: (req, file, cb) => {
-cb(null, `${Date.now()}-${file.originalname.replace(/\s+/g, '_')}`);
-},
+const storage = new CloudinaryStorage({
+  cloudinary,
+  params: async (req, file) => ({
+    folder: "portfolio",
+    resource_type: "auto",
+    public_id: `${Date.now()}-${file.originalname.replace(/\s+/g, "_")}`,
+  }),
 });
 
 const imageUpload = multer({
@@ -52,15 +47,15 @@ if (allowed.includes(file.mimetype)) {
 });
 
 router.post('/', auth, imageUpload.single('image'), (req, res) => {
-if (!req.file) {
-return res.status(400).json({
-message: 'No file uploaded',
-});
-}
+  if (!req.file) {
+    return res.status(400).json({
+      message: 'No file uploaded',
+    });
+  }
 
-res.json({
-url: `/uploads/${req.file.filename}`,
-});
+  res.json({
+    url: req.file.path,
+  });
 });
 
 router.post(
@@ -85,7 +80,7 @@ console.log(req.file);
     profile = new Profile();
   }
 
- profile.resume = "/uploads/" + req.file.filename;
+profile.resume = req.file.path;
 
   await profile.save();
 
@@ -125,7 +120,7 @@ router.post(
         profile = new Profile();
       }
 
-      profile.avatar = "/uploads/" + req.file.filename;
+     profile.avatar = req.file.path;
 
       await profile.save();
 
