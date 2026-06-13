@@ -157,9 +157,12 @@ export default function Profile() {
       );
 
       const res = await uploadAvatar(uploadFile);
+      console.log("UPLOAD RESPONSE:", res.data);
+
+const imageUrl = res.data.url;
 
       // ── Step 4: Update state — bump version to bust browser cache ─────────
-      setAvatar(res.data.url);
+     setAvatar(imageUrl);
       setAvatarVersion(Date.now());
       setAvatarStatus('success');
     } catch (error) {

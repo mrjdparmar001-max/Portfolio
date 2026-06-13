@@ -315,7 +315,8 @@ export default function Hero() {
       const r = await getProfile();
 
       console.log("PROFILE DATA:", r.data);
-
+console.log("AVATAR URL:", r.data.avatar);
+console.log("RESUME URL:", r.data.resume);
       setResumePath(r.data.resume || '');
       setAvatarPath(r.data.avatar || '');
 

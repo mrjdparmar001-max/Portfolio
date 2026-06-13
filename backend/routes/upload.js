@@ -3,7 +3,23 @@ const auth = require('../middleware/auth');
 const Profile = require('../models/Profile');
 const cloudinary = require("../config/cloudinary");
 const multer = require("multer");
+const streamifier = require("streamifier");
+const uploadToCloudinary = (fileBuffer, folder, resourceType = "auto") => {
+  return new Promise((resolve, reject) => {
+    const uploadStream = cloudinary.uploader.upload_stream(
+      {
+        folder,
+        resource_type: resourceType,
+      },
+      (error, result) => {
+        if (error) reject(error);
+        else resolve(result);
+      }
+    );
 
+    streamifier.createReadStream(fileBuffer).pipe(uploadStream);
+  });
+};
 const storage = multer.memoryStorage();
 
 const upload = multer({
@@ -78,7 +94,13 @@ console.log(req.file);
     profile = new Profile();
   }
 
-profile.resume = req.file.path;
+const result = await uploadToCloudinary(
+  req.file.buffer,
+  "portfolio/resumes",
+  "raw"
+);
+
+profile.resume = result.secure_url;
 
   await profile.save();
 
@@ -118,7 +140,13 @@ router.post(
         profile = new Profile();
       }
 
-     profile.avatar = req.file.path;
+  const result = await uploadToCloudinary(
+  req.file.buffer,
+  "portfolio/avatars",
+  "image"
+);
+
+profile.avatar = result.secure_url;
 
       await profile.save();
 
