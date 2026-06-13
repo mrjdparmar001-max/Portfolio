@@ -6,9 +6,7 @@ const nodemailer = require('nodemailer');
 const router = express.Router();
 
 const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 587,
-  secure: false,
+  service: "gmail",
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
@@ -42,17 +40,38 @@ router.get('/', auth, async (req, res) => {
 });
 
 router.put('/:id/read', auth, async (req, res) => {
-  try {
-    const msg = await Message.findByIdAndUpdate(
-      req.params.id,
-      { read: true },
-      { new: true }
-    );
-    res.json(msg);
-  } catch (err) {
-    res.status(400).json({ message: err.message });
-  }
-});
+  // Send Email
+try {
+  console.log("=================================");
+  console.log("SENDING EMAIL TO:", msg.email);
+  console.log("REPLY TEXT:", req.body.reply);
+
+  const info = await transporter.sendMail({
+    from: `"Jaydip Parmar" <${process.env.EMAIL_USER}>`,
+    to: msg.email,
+    subject: `Reply: ${msg.subject || "Your Message"}`,
+    html: `
+      <div style="font-family: Arial, sans-serif;">
+        <h2>Hello ${msg.name},</h2>
+
+        <p>${req.body.reply}</p>
+
+        <br/>
+
+        <p>Best Regards,</p>
+        <p><strong>Jaydip Parmar</strong></p>
+      </div>
+    `,
+  });
+
+  console.log("EMAIL SENT SUCCESS");
+  console.log("MESSAGE ID:", info.messageId);
+  console.log("RESPONSE:", info.response);
+
+} catch (mailError) {
+  console.error("EMAIL ERROR:");
+  console.error(mailError);
+}
 
 router.put('/:id/reply', auth, async (req, res) => {
   try {
