@@ -7,12 +7,11 @@ const { CloudinaryStorage } = require("multer-storage-cloudinary");
 
 const router = express.Router();
 const storage = new CloudinaryStorage({
-  cloudinary,
-  params: async (req, file) => ({
+  cloudinary: cloudinary,
+  params: {
     folder: "portfolio",
-    resource_type: "auto",
-    public_id: `${Date.now()}-${file.originalname.replace(/\s+/g, "_")}`,
-  }),
+    allowed_formats: ["jpg", "jpeg", "png", "webp", "pdf"],
+  },
 });
 
 const imageUpload = multer({
