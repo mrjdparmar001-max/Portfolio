@@ -549,7 +549,7 @@ export default function Hero() {
               }}
             >
               <FiDownload />
-              {resumeHref ? resumeName : 'Resume (soon)'}
+              {resumeHref ? 'Resume' : 'Resume (soon)'}
             </motion.button>
           </motion.div>
 
