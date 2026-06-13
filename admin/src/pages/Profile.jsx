@@ -522,7 +522,7 @@ const imageUrl = res.data.url;
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: '#0a0a0f', border: '1px solid #2a2a3e', borderRadius: 12, padding: '12px 16px', marginBottom: 16 }}>
               <FiFileText style={{ color: '#6c63ff', fontSize: 22, flexShrink: 0 }} />
               <span style={{ color: '#fff', fontSize: 14, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {resume.split('/').pop()}
+                {resumeName || "No Resume Uploaded"}
               </span>
               <a
                 href={resume}

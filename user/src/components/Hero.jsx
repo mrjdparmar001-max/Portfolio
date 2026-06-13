@@ -122,8 +122,8 @@ function Avatar3D({ theme, avatarSrc, avatarRef, x, y, rotateX, rotateY, badgesV
         ];
 
   // Avatar box size per tier
- const avatarW = tier === 'desktop' ? 420 : 320;
-const avatarH = tier === 'desktop' ? 520 : 420;
+  const avatarW = tier === 'desktop' ? 420 : 320;
+  const avatarH = tier === 'desktop' ? 520 : 420;
   // "Available for work" bottom offset per tier
   const availBottom = tier === 'mobile' ? -86 : -10;
 
@@ -196,32 +196,32 @@ const avatarH = tier === 'desktop' ? 520 : 420;
         </AnimatePresence>
 
         <motion.img
-  ref={imgRef}
-  key={avatarSrc}
-  src={avatarSrc}
-  alt="Profile"
-  loading="lazy"
-  decoding="async"
-  onLoad={() => setImgLoaded(true)}
- onError={(e) => {
-  console.log("IMAGE FAILED");
+          ref={imgRef}
+          key={avatarSrc}
+          src={avatarSrc}
+          alt="Profile"
+          loading="lazy"
+          decoding="async"
+          onLoad={() => setImgLoaded(true)}
+          onError={(e) => {
+            console.log("IMAGE FAILED");
 
-  if (e.currentTarget.src !== FALLBACK_AVATAR) {
-    e.currentTarget.src = FALLBACK_AVATAR;
-  }
+            if (e.currentTarget.src !== FALLBACK_AVATAR) {
+              e.currentTarget.src = FALLBACK_AVATAR;
+            }
 
-  setImgLoaded(true);
-}}
-  style={{
-    width: "100%",
-    height: "100%",
-    objectFit: "contain",
-    objectPosition: "50% 20%",
-    position: "absolute",
-    inset: 0,
-    zIndex: 2,
-  }}
-/>
+            setImgLoaded(true);
+          }}
+          style={{
+            width: "100%",
+            height: "100%",
+            objectFit: "contain",
+            objectPosition: "50% 20%",
+            position: "absolute",
+            inset: 0,
+            zIndex: 2,
+          }}
+        />
       </motion.div>
 
       {/* Tech badges */}
@@ -289,7 +289,27 @@ export default function Hero() {
   const tier = isDesktopUp ? 'desktop' : isTabletUp ? 'tablet' : 'mobile';
 
   const avatarSrc = avatarPath || FALLBACK_AVATAR;
- const resumeHref = resumePath || '';
+  const downloadResume = async () => {
+    try {
+      const response = await fetch(resumePath);
+      const blob = await response.blob();
+
+      const url = window.URL.createObjectURL(blob);
+
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = resumeName || "Resume.pdf";
+
+      document.body.appendChild(link);
+      link.click();
+
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Download Failed:", err);
+    }
+  };
+  const resumeHref = resumePath || '';
 
   const avatarRef = useRef(null);
   const x = useMotionValue(0);
@@ -311,37 +331,37 @@ export default function Hero() {
   const handleMouseLeave = useCallback(() => { x.set(0); y.set(0); }, [x, y]);
 
   useEffect(() => {
-  const loadProfile = async () => {
-    try {
-      const r = await getProfile();
+    const loadProfile = async () => {
+      try {
+        const r = await getProfile();
 
-      console.log("PROFILE DATA:", r.data);
-console.log("AVATAR URL:", r.data.avatar);
-console.log("RESUME URL:", r.data.resume);
-      setResumePath(r.data.resume || '');
-      setResumeName(r.data.resumeName || 'Resume.pdf');
-      setAvatarPath(r.data.avatar || '');
+        console.log("PROFILE DATA:", r.data);
+        console.log("AVATAR URL:", r.data.avatar);
+        console.log("RESUME URL:", r.data.resume);
+        setResumePath(r.data.resume || '');
+        setResumeName(r.data.resumeName || 'Resume.pdf');
+        setAvatarPath(r.data.avatar || '');
 
-      setSocials({
-        github: r.data.github || '',
-        linkedin: r.data.linkedin || '',
-        twitter: r.data.twitter || '',
-        email: r.data.email || ''
-      });
+        setSocials({
+          github: r.data.github || '',
+          linkedin: r.data.linkedin || '',
+          twitter: r.data.twitter || '',
+          email: r.data.email || ''
+        });
 
-    } catch (err) {
+      } catch (err) {
 
-      console.log("PROFILE ERROR:", err);
+        console.log("PROFILE ERROR:", err);
 
-    } finally {
+      } finally {
 
-      setLoading(false);
+        setLoading(false);
 
-    }
-  };
+      }
+    };
 
-  loadProfile();
-}, []);
+    loadProfile();
+  }, []);
 
   const socialList = useMemo(() => [
     { icon: <FiGithub />, href: socials.github, show: !!socials.github, color: '#e2e8f0' },
@@ -508,14 +528,29 @@ console.log("RESUME URL:", r.data.resume);
               Hire Me 🚀
             </motion.button>
 
-            <motion.a
-              whileHover={{ scale: resumeHref ? 1.05 : 1 }} whileTap={{ scale: resumeHref ? 0.94 : 1 }}
-              href={resumeHref || '#'} download={!!resumeHref}
-              onClick={e => { if (!resumeHref) e.preventDefault(); }}
-              style={{ background: 'transparent', border: `2px solid ${resumeHref ? theme.primary : theme.border}`, borderRadius: 50, padding: isTablet ? '11px 24px' : '13px 30px', color: resumeHref ? theme.primary : theme.textMuted, fontSize: isTablet ? 14 : 15, fontWeight: 700, cursor: resumeHref ? 'pointer' : 'not-allowed', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 8, opacity: resumeHref ? 1 : 0.45 }}
+            <motion.button
+              whileHover={{ scale: resumeHref ? 1.05 : 1 }}
+              whileTap={{ scale: resumeHref ? 0.94 : 1 }}
+              onClick={downloadResume}
+              disabled={!resumeHref}
+              style={{
+                background: 'transparent',
+                border: `2px solid ${resumeHref ? theme.primary : theme.border}`,
+                borderRadius: 50,
+                padding: isTablet ? '11px 24px' : '13px 30px',
+                color: resumeHref ? theme.primary : theme.textMuted,
+                fontSize: isTablet ? 14 : 15,
+                fontWeight: 700,
+                cursor: resumeHref ? 'pointer' : 'not-allowed',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                opacity: resumeHref ? 1 : 0.45
+              }}
             >
-              <FiDownload /> {resumeHref ? 'Resume' : 'Resume (soon)'}
-            </motion.a>
+              <FiDownload />
+              {resumeHref ? resumeName : 'Resume (soon)'}
+            </motion.button>
           </motion.div>
 
           {/* Socials */}
