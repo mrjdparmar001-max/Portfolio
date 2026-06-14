@@ -60,17 +60,38 @@ if (allowed.includes(file.mimetype)) {
 },
 });
 
-router.post('/', auth, imageUpload.single('image'), (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({
-      message: 'No file uploaded',
-    });
-  }
+router.post(
+  '/',
+  auth,
+  imageUpload.single('image'),
+  async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({
+          message: 'No file uploaded',
+        });
+      }
 
-  res.json({
-    url: req.file.path,
-  });
-});
+      const result = await uploadToCloudinary(
+        req.file.buffer,
+        'portfolio/projects',
+        'image'
+      );
+
+      res.json({
+        url: result.secure_url,
+      });
+
+    } catch (err) {
+      console.error('PROJECT IMAGE ERROR');
+      console.error(err);
+
+      res.status(500).json({
+        message: err.message,
+      });
+    }
+  }
+);
 
 router.post(
 '/resume',
