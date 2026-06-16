@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
 import { useTheme } from '../context/ThemeContext';
 import { getCompliments, sendCompliment } from '../api/api';
-import { FiStar } from 'react-icons/fi';
+import { FiStar, FiX, FiChevronRight, FiMessageSquare } from 'react-icons/fi';
 
 /* ─── Global styles ─────────────────────────────────────────────────────── */
 const STYLES = `
@@ -40,6 +40,10 @@ const STYLES = `
     0%,100% { background-position: 0% 50%;   }
     50%      { background-position: 100% 50%; }
   }
+  @keyframes panelSlideIn {
+    from { transform: translateY(100%); opacity: 0; }
+    to   { transform: translateY(0);    opacity: 1; }
+  }
 
   .tm-particle {
     position: absolute; border-radius: 50%;
@@ -55,6 +59,8 @@ const STYLES = `
     overflow: hidden;
     transition: border-color 0.3s ease, box-shadow 0.3s ease;
     cursor: default;
+    height: 100%;
+    box-sizing: border-box;
   }
   .tm-card::before {
     content: '';
@@ -154,6 +160,114 @@ const STYLES = `
     border-radius: 2px; margin-left: 6px; vertical-align: middle;
     animation: cursorBlink 1s step-end infinite;
   }
+
+  /* ── All Compliments Panel ── */
+  .tm-overlay-backdrop {
+    position: fixed; inset: 0; z-index: 1000;
+    background: rgba(0,0,0,0.72);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+  }
+  .tm-overlay-panel {
+    position: fixed; inset: 0; z-index: 1001;
+    display: flex; align-items: flex-end; justify-content: center;
+    padding: 0;
+  }
+  .tm-overlay-sheet {
+    width: 100%; max-height: 92vh;
+    background: var(--tm-card);
+    border-radius: 28px 28px 0 0;
+    border: 1px solid var(--tm-border);
+    border-bottom: none;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 -24px 80px rgba(0,0,0,0.5);
+  }
+  .tm-overlay-header {
+    padding: 20px 28px 16px;
+    border-bottom: 1px solid var(--tm-border);
+    display: flex; align-items: center; justify-content: space-between;
+    flex-shrink: 0;
+    background: var(--tm-card);
+    position: relative;
+  }
+  .tm-overlay-header::before {
+    content: '';
+    position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+    width: 44px; height: 4px; border-radius: 4px;
+    background: var(--tm-border);
+  }
+  .tm-overlay-scroll {
+    overflow-y: auto; flex: 1;
+    padding: 28px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--tm-primary-mid) transparent;
+  }
+  .tm-overlay-scroll::-webkit-scrollbar { width: 5px; }
+  .tm-overlay-scroll::-webkit-scrollbar-thumb { background: var(--tm-primary-mid); border-radius: 4px; }
+  .tm-overlay-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 20px;
+  }
+  .tm-close-btn {
+    background: var(--tm-bg-secondary);
+    border: 1px solid var(--tm-border);
+    border-radius: 50%;
+    width: 38px; height: 38px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; color: var(--tm-text-muted);
+    transition: background 0.2s, color 0.2s, border-color 0.2s;
+    flex-shrink: 0;
+  }
+  .tm-close-btn:hover {
+    background: var(--tm-primary-faint);
+    border-color: var(--tm-primary-mid);
+    color: var(--tm-primary);
+  }
+  .tm-view-all-btn {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--tm-bg-secondary);
+    border: 1px solid var(--tm-border);
+    border-radius: 50px;
+    padding: 13px 28px;
+    color: var(--tm-text);
+    font-size: 15px; font-weight: 600;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s, box-shadow 0.2s, transform 0.15s;
+    position: relative; overflow: hidden;
+  }
+  .tm-view-all-btn::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(135deg, var(--tm-primary-faint) 0%, transparent 80%);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .tm-view-all-btn:hover::before { opacity: 1; }
+  .tm-view-all-btn:hover {
+    border-color: var(--tm-primary-mid);
+    box-shadow: 0 8px 28px var(--tm-primary-shadow);
+    transform: translateY(-2px);
+  }
+  .tm-view-all-btn:active { transform: scale(0.97); }
+  .tm-count-badge {
+    background: var(--tm-gradient);
+    color: #fff;
+    font-size: 11px; font-weight: 800;
+    border-radius: 50px;
+    padding: 2px 8px;
+    letter-spacing: 0.5px;
+  }
+  .tm-stat-pill {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--tm-bg-secondary);
+    border: 1px solid var(--tm-border);
+    border-radius: 50px;
+    padding: 6px 14px;
+    font-size: 13px;
+    color: var(--tm-text-muted);
+  }
 `;
 
 const PARTICLES = Array.from({ length: 16 }, (_, i) => ({
@@ -193,7 +307,7 @@ function TiltCard({ children, style }) {
       ref={ref}
       onMouseMove={onMove}
       onMouseLeave={onLeave}
-      style={{ rotateX, rotateY, transformStyle: 'preserve-3d', perspective: 800, ...style }}
+      style={{ rotateX, rotateY, transformStyle: 'preserve-3d', perspective: 800, height: '100%', ...style }}
       transition={{ type: 'spring', stiffness: 300, damping: 28 }}
     >
       {children}
@@ -202,13 +316,15 @@ function TiltCard({ children, style }) {
 }
 
 /* ─── Single testimonial card ───────────────────────────────────────────── */
-function TestimonialCard({ c, i }) {
+function TestimonialCard({ c, i, inPanel = false }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 36 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, amount: 0.2 }}
-      transition={{ delay: i * 0.1, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+      initial={{ opacity: 0, y: inPanel ? 20 : 36 }}
+      animate={inPanel ? { opacity: 1, y: 0 } : undefined}
+      whileInView={!inPanel ? { opacity: 1, y: 0 } : undefined}
+      viewport={!inPanel ? { once: true, amount: 0.2 } : undefined}
+      transition={{ delay: i * (inPanel ? 0.06 : 0.1), duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+      style={{ height: '100%' }}
     >
       <TiltCard>
         <div className="tm-card">
@@ -221,20 +337,19 @@ function TestimonialCard({ c, i }) {
               <motion.span
                 key={j}
                 initial={{ opacity: 0, scale: 0, rotate: -30 }}
-                whileInView={{ opacity: 1, scale: 1, rotate: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1 + j * 0.06 + 0.2, type: 'spring', stiffness: 400, damping: 16 }}
+                animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                transition={{ delay: i * 0.06 + j * 0.05 + 0.15, type: 'spring', stiffness: 400, damping: 16 }}
               >
                 <FiStar style={{
                   color: j < (c.rating || 5) ? '#f6c90e' : 'var(--tm-border)',
                   fill:  j < (c.rating || 5) ? '#f6c90e' : 'none',
-                  fontSize: 16,
+                  fontSize: 15,
                 }} />
               </motion.span>
             ))}
           </div>
 
-          <p style={{ color: 'var(--tm-text-muted)', fontSize: 15, lineHeight: 1.8, marginBottom: 20, fontStyle: 'italic' }}>
+          <p style={{ color: 'var(--tm-text-muted)', fontSize: 14, lineHeight: 1.8, marginBottom: 20, fontStyle: 'italic' }}>
             "{c.message}"
           </p>
 
@@ -315,26 +430,122 @@ function ConfettiBurst({ primary, secondary, accent }) {
   );
 }
 
+/* ─── All Compliments Overlay Panel ─────────────────────────────────────── */
+function AllComplimentsPanel({ compliments, onClose, theme }) {
+  // Lock body scroll when panel is open
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
+  }, []);
+
+  // Close on Escape key
+  useEffect(() => {
+    const handler = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [onClose]);
+
+  const avgRating = compliments.length
+    ? (compliments.reduce((s, c) => s + (c.rating || 5), 0) / compliments.length).toFixed(1)
+    : '5.0';
+
+  return (
+    <AnimatePresence>
+      {/* Backdrop */}
+      <motion.div
+        className="tm-overlay-backdrop"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.25 }}
+        onClick={onClose}
+      />
+
+      {/* Sheet panel */}
+      <div className="tm-overlay-panel">
+        <motion.div
+          className="tm-overlay-sheet"
+          initial={{ y: '100%', opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: '100%', opacity: 0 }}
+          transition={{ type: 'spring', stiffness: 340, damping: 34 }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Header */}
+          <div className="tm-overlay-header">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, paddingTop: 8 }}>
+              <div>
+                <div style={{ color: 'var(--tm-text)', fontWeight: 800, fontSize: 20 }}>
+                  All Testimonials
+                </div>
+                <div style={{ color: 'var(--tm-text-muted)', fontSize: 13, marginTop: 2 }}>
+                  Every kind word from verified clients
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingTop: 8 }}>
+              {/* Stats pills */}
+              <div className="tm-stat-pill">
+                <FiStar style={{ color: '#f6c90e', fill: '#f6c90e', fontSize: 13 }} />
+                <span style={{ fontWeight: 700, color: 'var(--tm-text)' }}>{avgRating}</span>
+              </div>
+              <div className="tm-stat-pill">
+                <FiMessageSquare style={{ fontSize: 13, color: 'var(--tm-primary)' }} />
+                <span style={{ fontWeight: 700, color: 'var(--tm-text)' }}>{compliments.length}</span>
+              </div>
+              <button className="tm-close-btn" onClick={onClose} aria-label="Close">
+                <FiX size={18} />
+              </button>
+            </div>
+          </div>
+
+          {/* Scrollable grid */}
+          <div className="tm-overlay-scroll">
+            {/* Shimmer accent bar */}
+            <div style={{
+              height: 2, borderRadius: 2, marginBottom: 28,
+              background: theme.gradient, opacity: 0.6,
+            }} />
+
+            <div className="tm-overlay-grid">
+              {compliments.map((c, i) => (
+                <TestimonialCard key={c._id || i} c={c} i={i} inPanel />
+              ))}
+            </div>
+
+            <div style={{ height: 24 }} />
+          </div>
+        </motion.div>
+      </div>
+    </AnimatePresence>
+  );
+}
+
 /* ─── Main component ────────────────────────────────────────────────────── */
 const demoCompliments = [
-  { _id: '1', name: 'Rahul Sharma', message: 'Jaydip is an exceptional developer! Delivered our project on time with outstanding quality.', rating: 5 },
-  { _id: '2', name: 'Priya Patel',  message: 'Amazing work! The UI he designed exceeded all our expectations. Highly recommended!', rating: 5 },
-  { _id: '3', name: 'Amit Kumar',   message: 'Professional, skilled, and creative. Our e-commerce platform works flawlessly.', rating: 5 },
+  { _id: '1', name: 'Rahul Sharma',   message: 'Jaydip is an exceptional developer! Delivered our project on time with outstanding quality.', rating: 5 },
+  { _id: '2', name: 'Priya Patel',    message: 'Amazing work! The UI he designed exceeded all our expectations. Highly recommended!', rating: 5 },
+  { _id: '3', name: 'Amit Kumar',     message: 'Professional, skilled, and creative. Our e-commerce platform works flawlessly.', rating: 5 },
+  { _id: '4', name: 'Diya Patel',     message: 'Your portfolio is impressive and well-structured. Good work Jaydeep keep it up!', rating: 5 },
+  { _id: '5', name: 'Ikram',          message: "You've done an excellent job presenting your work. The attention to detail and overall professionalism make a strong impression.", rating: 5 },
+  { _id: '6', name: 'Murabiya Priyansh', message: 'Nice work and very satisfied with the work', rating: 5 },
 ];
+
+const PREVIEW_COUNT = 3;
 
 export default function Testimonials() {
   const { theme } = useTheme();
-  const [compliments, setCompliments] = useState(demoCompliments);
-  const [form,        setForm]        = useState({ name: '', message: '', rating: 5 });
-  const [submitted,   setSubmitted]   = useState(false);
-  const [loading,     setLoading]     = useState(false);
-  const [burst,       setBurst]       = useState(false);
+  const [compliments, setCompliments]   = useState(demoCompliments);
+  const [form,        setForm]          = useState({ name: '', message: '', rating: 5 });
+  const [submitted,   setSubmitted]     = useState(false);
+  const [loading,     setLoading]       = useState(false);
+  const [burst,       setBurst]         = useState(false);
+  const [panelOpen,   setPanelOpen]     = useState(false);
   const submitRef = useRef(null);
 
-  /* inject CSS vars + keyframes once */
   useEffect(() => { injectStyles('tm-styles', STYLES); }, []);
 
-  /* sync CSS vars with current theme */
   useEffect(() => {
     const r = document.documentElement;
     r.style.setProperty('--tm-bg',             theme.bg);
@@ -359,7 +570,6 @@ export default function Testimonials() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    /* ripple */
     const btn = submitRef.current;
     if (btn) {
       const rect = btn.getBoundingClientRect();
@@ -382,200 +592,231 @@ export default function Testimonials() {
     setLoading(false);
   };
 
-  /* animation variants */
-  const stagger  = { hidden: {}, show: { transition: { staggerChildren: 0.12, delayChildren: 0.1 } } };
-  const fadeUp   = { hidden: { opacity: 0, y: 24 }, show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] } } };
+  const stagger = { hidden: {}, show: { transition: { staggerChildren: 0.12, delayChildren: 0.1 } } };
+  const fadeUp  = { hidden: { opacity: 0, y: 24 }, show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] } } };
+
+  const previewCompliments = compliments.slice(0, PREVIEW_COUNT);
+  const hasMore = compliments.length > PREVIEW_COUNT;
 
   return (
-    <section
-      id="testimonials"
-      style={{ padding: '90px 5% 80px', background: theme.bgSecondary, position: 'relative', overflow: 'hidden' }}
-    >
-      {/* Ambient particles */}
-      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden' }}>
-        {PARTICLES.map(({ id, left, size, duration, delay }) => (
-          <div key={id} className="tm-particle"
-            style={{ bottom: '-8px', left, width: size, height: size, background: theme.primary, animationDuration: duration, animationDelay: delay }}
+    <>
+      {/* All Compliments Panel (portal-style overlay) */}
+      <AnimatePresence>
+        {panelOpen && (
+          <AllComplimentsPanel
+            compliments={compliments}
+            onClose={() => setPanelOpen(false)}
+            theme={theme}
           />
-        ))}
-      </div>
+        )}
+      </AnimatePresence>
 
-      <div style={{ maxWidth: 1200, margin: '0 auto', position: 'relative', zIndex: 1 }}>
-
-        {/* ── Header ── */}
-        <motion.div
-          initial="hidden" whileInView="show"
-          viewport={{ once: true, amount: 0.3 }}
-          variants={stagger}
-          style={{ textAlign: 'center', marginBottom: 60 }}
-        >
-          <motion.p variants={fadeUp} style={{ color: theme.primary, fontSize: 13, fontWeight: 700, letterSpacing: 4, textTransform: 'uppercase', marginBottom: 12 }}>
-            Kind Words
-          </motion.p>
-          <motion.h2 variants={fadeUp} style={{ fontSize: 'clamp(32px, 4vw, 48px)', fontWeight: 800, color: theme.text, marginBottom: 16 }}>
-            What People Say
-            <span className="tm-cursor" style={{ background: theme.primary }} />
-          </motion.h2>
-          <motion.div
-            variants={{ hidden: { width: 0 }, show: { width: 60, transition: { duration: 0.8, ease: 'easeOut', delay: 0.2 } } }}
-            style={{ height: 4, background: theme.gradient, borderRadius: 2, margin: '0 auto' }}
-          />
-        </motion.div>
-
-        {/* ── Cards grid ── */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 24, marginBottom: 80 }}>
-          {compliments.map((c, i) => (
-            <TestimonialCard key={c._id || i} c={c} i={i} />
+      <section
+        id="testimonials"
+        style={{ padding: '90px 5% 80px', background: theme.bgSecondary, position: 'relative', overflow: 'hidden' }}
+      >
+        {/* Ambient particles */}
+        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden' }}>
+          {PARTICLES.map(({ id, left, size, duration, delay }) => (
+            <div key={id} className="tm-particle"
+              style={{ bottom: '-8px', left, width: size, height: size, background: theme.primary, animationDuration: duration, animationDelay: delay }}
+            />
           ))}
         </div>
 
-        {/* ── Leave a compliment box ── */}
-        <motion.div
-          initial={{ opacity: 0, y: 40 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.2 }}
-          transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-          style={{
-            background: theme.bgCard,
-            border: `1px solid ${theme.border}`,
-            borderRadius: 24,
-            padding: 40,
-            maxWidth: 600,
-            margin: '0 auto',
-            position: 'relative',
-            overflow: 'hidden',
-          }}
-        >
-          {/* shimmer bar */}
-          <div className="tm-shimmer-wrap"><div className="tm-shimmer-bar" /></div>
+        <div style={{ maxWidth: 1200, margin: '0 auto', position: 'relative', zIndex: 1 }}>
 
-          {/* confetti */}
-          <AnimatePresence>{burst && <ConfettiBurst primary={theme.primary} secondary={theme.secondary} accent={theme.accent} />}</AnimatePresence>
-
-          <motion.h3
-            initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
-            style={{ color: theme.text, fontSize: 24, fontWeight: 700, marginBottom: 8, textAlign: 'center' }}
+          {/* ── Header ── */}
+          <motion.div
+            initial="hidden" whileInView="show"
+            viewport={{ once: true, amount: 0.3 }}
+            variants={stagger}
+            style={{ textAlign: 'center', marginBottom: 60 }}
           >
-            Leave a Compliment 💬
-          </motion.h3>
-          <motion.p
-            initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }}
-            transition={{ delay: 0.15 }}
-            style={{ color: theme.textMuted, textAlign: 'center', marginBottom: 32, fontSize: 14 }}
-          >
-            Your kind words mean the world to me!
-          </motion.p>
+            <motion.p variants={fadeUp} style={{ color: theme.primary, fontSize: 13, fontWeight: 700, letterSpacing: 4, textTransform: 'uppercase', marginBottom: 12 }}>
+              Kind Words
+            </motion.p>
+            <motion.h2 variants={fadeUp} style={{ fontSize: 'clamp(32px, 4vw, 48px)', fontWeight: 800, color: theme.text, marginBottom: 16 }}>
+              What People Say
+              <span className="tm-cursor" style={{ background: theme.primary }} />
+            </motion.h2>
+            <motion.div
+              variants={{ hidden: { width: 0 }, show: { width: 60, transition: { duration: 0.8, ease: 'easeOut', delay: 0.2 } } }}
+              style={{ height: 4, background: theme.gradient, borderRadius: 2, margin: '0 auto' }}
+            />
+          </motion.div>
 
-          <AnimatePresence mode="wait">
-            {submitted ? (
-              <motion.div
-                key="thanks"
-                initial={{ scale: 0.7, opacity: 0 }}
-                animate={{ scale: 1,   opacity: 1 }}
-                exit={{   scale: 0.7,  opacity: 0 }}
-                transition={{ type: 'spring', stiffness: 380, damping: 22 }}
-                style={{ textAlign: 'center', padding: '32px 0' }}
+          {/* ── Preview Cards grid (max 3) ── */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 24, marginBottom: 40 }}>
+            {previewCompliments.map((c, i) => (
+              <TestimonialCard key={c._id || i} c={c} i={i} />
+            ))}
+          </div>
+
+          {/* ── View All button ── */}
+          {hasMore && (
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+              style={{ display: 'flex', justifyContent: 'center', marginBottom: 72 }}
+            >
+              <button
+                className="tm-view-all-btn"
+                onClick={() => setPanelOpen(true)}
               >
+                <FiMessageSquare style={{ color: theme.primary, fontSize: 17 }} />
+                <span>View All Testimonials</span>
+                <span className="tm-count-badge">{compliments.length}</span>
+                <FiChevronRight style={{ fontSize: 17, color: theme.primary }} />
+              </button>
+            </motion.div>
+          )}
+
+          {/* ── Leave a compliment box ── */}
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.2 }}
+            transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+            style={{
+              background: theme.bgCard,
+              border: `1px solid ${theme.border}`,
+              borderRadius: 24,
+              padding: 40,
+              maxWidth: 600,
+              margin: '0 auto',
+              position: 'relative',
+              overflow: 'hidden',
+            }}
+          >
+            <div className="tm-shimmer-wrap"><div className="tm-shimmer-bar" /></div>
+
+            <AnimatePresence>{burst && <ConfettiBurst primary={theme.primary} secondary={theme.secondary} accent={theme.accent} />}</AnimatePresence>
+
+            <motion.h3
+              initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+              style={{ color: theme.text, fontSize: 24, fontWeight: 700, marginBottom: 8, textAlign: 'center' }}
+            >
+              Leave a Compliment 💬
+            </motion.h3>
+            <motion.p
+              initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }}
+              transition={{ delay: 0.15 }}
+              style={{ color: theme.textMuted, textAlign: 'center', marginBottom: 32, fontSize: 14 }}
+            >
+              Your kind words mean the world to me!
+            </motion.p>
+
+            <AnimatePresence mode="wait">
+              {submitted ? (
                 <motion.div
-                  className="tm-celebrate"
-                  style={{ fontSize: 64, marginBottom: 16, display: 'inline-block' }}
+                  key="thanks"
+                  initial={{ scale: 0.7, opacity: 0 }}
+                  animate={{ scale: 1,   opacity: 1 }}
+                  exit={{   scale: 0.7,  opacity: 0 }}
+                  transition={{ type: 'spring', stiffness: 380, damping: 22 }}
+                  style={{ textAlign: 'center', padding: '32px 0' }}
                 >
-                  🎉
+                  <motion.div className="tm-celebrate" style={{ fontSize: 64, marginBottom: 16, display: 'inline-block' }}>
+                    🎉
+                  </motion.div>
+                  <motion.h4
+                    initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
+                    style={{ color: theme.primary, fontSize: 22, fontWeight: 700, marginBottom: 8 }}
+                  >
+                    Thank you!
+                  </motion.h4>
+                  <motion.p
+                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.25 }}
+                    style={{ color: theme.textMuted, marginBottom: 24 }}
+                  >
+                    Your compliment is pending approval.
+                  </motion.p>
+                  <motion.button
+                    whileHover={{ scale: 1.05, boxShadow: `0 8px 28px ${theme.primary}40` }}
+                    whileTap={{ scale: 0.96 }}
+                    onClick={() => setSubmitted(false)}
+                    style={{ background: theme.gradient, border: 'none', borderRadius: 50, padding: '11px 28px', color: '#fff', cursor: 'pointer', fontWeight: 700, fontSize: 15 }}
+                  >
+                    Leave Another ✨
+                  </motion.button>
                 </motion.div>
-                <motion.h4
-                  initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
-                  style={{ color: theme.primary, fontSize: 22, fontWeight: 700, marginBottom: 8 }}
+              ) : (
+                <motion.form
+                  key="form"
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{   opacity: 0, y: -16 }}
+                  transition={{ duration: 0.4 }}
+                  onSubmit={handleSubmit}
+                  style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
                 >
-                  Thank you!
-                </motion.h4>
-                <motion.p
-                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.25 }}
-                  style={{ color: theme.textMuted, marginBottom: 24 }}
-                >
-                  Your compliment is pending approval.
-                </motion.p>
-                <motion.button
-                  whileHover={{ scale: 1.05, boxShadow: `0 8px 28px ${theme.primary}40` }}
-                  whileTap={{ scale: 0.96 }}
-                  onClick={() => setSubmitted(false)}
-                  style={{ background: theme.gradient, border: 'none', borderRadius: 50, padding: '11px 28px', color: '#fff', cursor: 'pointer', fontWeight: 700, fontSize: 15 }}
-                >
-                  Leave Another ✨
-                </motion.button>
-              </motion.div>
-            ) : (
-              <motion.form
-                key="form"
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{   opacity: 0, y: -16 }}
-                transition={{ duration: 0.4 }}
-                onSubmit={handleSubmit}
-                style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
-              >
-                <div className="tm-input-wrap">
-                  <input
-                    required
-                    className="tm-input"
-                    placeholder="Your Name"
-                    value={form.name}
-                    onChange={e => setForm({ ...form, name: e.target.value })}
-                  />
-                  <div className="tm-focus-bar" />
-                </div>
+                  <div className="tm-input-wrap">
+                    <input
+                      required
+                      className="tm-input"
+                      placeholder="Your Name"
+                      value={form.name}
+                      onChange={e => setForm({ ...form, name: e.target.value })}
+                    />
+                    <div className="tm-focus-bar" />
+                  </div>
 
-                <div className="tm-input-wrap">
-                  <textarea
-                    required
-                    className="tm-input"
-                    placeholder="Your message..."
-                    rows={4}
-                    value={form.message}
-                    onChange={e => setForm({ ...form, message: e.target.value })}
-                    style={{ resize: 'vertical' }}
-                  />
-                  <div className="tm-focus-bar" />
-                </div>
+                  <div className="tm-input-wrap">
+                    <textarea
+                      required
+                      className="tm-input"
+                      placeholder="Your message..."
+                      rows={4}
+                      value={form.message}
+                      onChange={e => setForm({ ...form, message: e.target.value })}
+                      style={{ resize: 'vertical' }}
+                    />
+                    <div className="tm-focus-bar" />
+                  </div>
 
-                <div>
-                  <label style={{ color: theme.textMuted, fontSize: 14, marginBottom: 10, display: 'block' }}>Rating</label>
-                  <StarRating
-                    value={form.rating}
-                    onChange={n => setForm({ ...form, rating: n })}
-                    primary={theme.primary}
-                    border={theme.border}
-                  />
-                </div>
+                  <div>
+                    <label style={{ color: theme.textMuted, fontSize: 14, marginBottom: 10, display: 'block' }}>Rating</label>
+                    <StarRating
+                      value={form.rating}
+                      onChange={n => setForm({ ...form, rating: n })}
+                      primary={theme.primary}
+                      border={theme.border}
+                    />
+                  </div>
 
-                <button
-                  ref={submitRef}
-                  type="submit"
-                  disabled={loading}
-                  className="tm-submit-btn"
-                  style={{ background: theme.gradient }}
-                >
-                  <AnimatePresence mode="wait">
-                    {loading ? (
-                      <motion.span key="ld"
-                        initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
-                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
-                      >
-                        <span className="tm-spin">✦</span> Submitting...
-                      </motion.span>
-                    ) : (
-                      <motion.span key="idle"
-                        initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
-                      >
-                        Submit Compliment ✨
-                      </motion.span>
-                    )}
-                  </AnimatePresence>
-                </button>
-              </motion.form>
-            )}
-          </AnimatePresence>
-        </motion.div>
-      </div>
-    </section>
+                  <button
+                    ref={submitRef}
+                    type="submit"
+                    disabled={loading}
+                    className="tm-submit-btn"
+                    style={{ background: theme.gradient }}
+                  >
+                    <AnimatePresence mode="wait">
+                      {loading ? (
+                        <motion.span key="ld"
+                          initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
+                          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+                        >
+                          <span className="tm-spin">✦</span> Submitting...
+                        </motion.span>
+                      ) : (
+                        <motion.span key="idle"
+                          initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
+                        >
+                          Submit Compliment ✨
+                        </motion.span>
+                      )}
+                    </AnimatePresence>
+                  </button>
+                </motion.form>
+              )}
+            </AnimatePresence>
+          </motion.div>
+        </div>
+      </section>
+    </>
   );
 }
