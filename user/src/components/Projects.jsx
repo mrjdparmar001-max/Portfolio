@@ -238,58 +238,97 @@ function AnimatedCount({ value, theme }) {
 }
 
 function ProjectCarousel({ projects, theme }) {
-  const trackRef   = useRef(null);
-  const isPaused   = useRef(false);
-  const isDragging = useRef(false);
-  const startX     = useRef(0);
+  const trackRef    = useRef(null);
+  const isPaused    = useRef(false);   // true  → auto-scroll frozen
+  const isDragging  = useRef(false);   // true  → finger/mouse actively dragging
+  const startX      = useRef(0);
   const scrollStart = useRef(0);
-  const rafRef     = useRef(null);
-  const SPEED      = 0.7;
+  const rafRef      = useRef(null);
+  const resumeTimer = useRef(null);
+  const SPEED       = 0.7; // px per frame
 
-  // Duplicate for seamless loop — need at least 2 copies to loop correctly
-  const copies = projects.length < 4 ? [...projects, ...projects, ...projects] : [...projects, ...projects];
+  // Triple-copy so loop never runs dry on small sets
+  const copies = projects.length < 4
+    ? [...projects, ...projects, ...projects]
+    : [...projects, ...projects];
+  const copyCount = copies.length / projects.length;
 
+  // ── auto-scroll rAF loop ─────────────────────────────────────────────────
   const tick = useCallback(() => {
     const el = trackRef.current;
     if (el && !isPaused.current) {
       el.scrollLeft += SPEED;
-      const oneSetWidth = el.scrollWidth / (copies.length / projects.length);
-      if (el.scrollLeft >= oneSetWidth) el.scrollLeft -= oneSetWidth;
+      const oneSet = el.scrollWidth / copyCount;
+      if (el.scrollLeft >= oneSet) el.scrollLeft -= oneSet;
     }
     rafRef.current = requestAnimationFrame(tick);
-  }, [copies.length, projects.length]);
+  }, [copyCount]);
 
   useEffect(() => {
     rafRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafRef.current);
   }, [tick]);
 
-  const onPointerDown = (e) => {
-    isDragging.current = true;
+  // ── helpers ──────────────────────────────────────────────────────────────
+  const pauseScroll = () => {
+    clearTimeout(resumeTimer.current);
     isPaused.current = true;
-    startX.current = e.pageX;
+  };
+  const resumeAfter = (ms = 700) => {
+    clearTimeout(resumeTimer.current);
+    resumeTimer.current = setTimeout(() => {
+      isPaused.current = false;
+    }, ms);
+  };
+
+  // ── MOUSE drag ───────────────────────────────────────────────────────────
+  const onMouseDown = (e) => {
+    isDragging.current = true;
+    pauseScroll();
+    startX.current    = e.pageX;
     scrollStart.current = trackRef.current.scrollLeft;
     trackRef.current.style.cursor = 'grabbing';
-    trackRef.current.setPointerCapture(e.pointerId);
   };
-  const onPointerUp = (e) => {
+  const onMouseUp = () => {
     if (!isDragging.current) return;
     isDragging.current = false;
     trackRef.current.style.cursor = 'grab';
-    try { trackRef.current.releasePointerCapture(e.pointerId); } catch (_) {}
-    setTimeout(() => { isPaused.current = false; }, 700);
+    resumeAfter(700);
   };
-  const onPointerMove = (e) => {
+  const onMouseMove = (e) => {
     if (!isDragging.current) return;
     e.preventDefault();
-    const el = trackRef.current;
-    el.scrollLeft = scrollStart.current - (e.pageX - startX.current) * 1.5;
+    trackRef.current.scrollLeft = scrollStart.current - (e.pageX - startX.current) * 1.5;
+  };
+  // Mouse hover (desktop only — no effect on touch)
+  const onMouseEnterCard = () => pauseScroll();
+  const onMouseLeaveCard = () => {
+    if (!isDragging.current) resumeAfter(120);
   };
 
+  // ── TOUCH drag ───────────────────────────────────────────────────────────
+  const onTouchStart = (e) => {
+    isDragging.current  = true;
+    pauseScroll();                           // finger down → freeze scroll
+    startX.current      = e.touches[0].pageX;
+    scrollStart.current = trackRef.current.scrollLeft;
+  };
+  const onTouchMove = (e) => {
+    if (!isDragging.current) return;
+    // Don't call preventDefault here — let browser handle vertical scroll
+    const dx = e.touches[0].pageX - startX.current;
+    trackRef.current.scrollLeft = scrollStart.current - dx * 1.2;
+  };
+  const onTouchEnd = () => {
+    isDragging.current = false;
+    resumeAfter(800);                        // finger off → resume after brief pause
+  };
+
+  // ── arrow buttons ────────────────────────────────────────────────────────
   const scrollByCard = (dir) => {
-    isPaused.current = true;
+    pauseScroll();
     trackRef.current.scrollBy({ left: dir * (320 + 24), behavior: 'smooth' });
-    setTimeout(() => { isPaused.current = false; }, 900);
+    resumeAfter(950);
   };
 
   const btnBase = {
@@ -304,24 +343,57 @@ function ProjectCarousel({ projects, theme }) {
   return (
     <div style={{ position: 'relative' }}>
       {/* Edge fades */}
-      <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 120, background: `linear-gradient(to right, ${theme.bg} 30%, transparent)`, zIndex: 10, pointerEvents: 'none' }} />
-      <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 120, background: `linear-gradient(to left, ${theme.bg} 30%, transparent)`, zIndex: 10, pointerEvents: 'none' }} />
+      <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 80, background: `linear-gradient(to right, ${theme.bg} 20%, transparent)`, zIndex: 10, pointerEvents: 'none' }} />
+      <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 80, background: `linear-gradient(to left, ${theme.bg} 20%, transparent)`, zIndex: 10, pointerEvents: 'none' }} />
 
-      <motion.button whileHover={{ scale: 1.12, background: theme.primary, color: '#fff', borderColor: 'transparent' }} whileTap={{ scale: 0.9 }} onClick={() => scrollByCard(-1)} style={{ ...btnBase, left: 16 }}><FiChevronLeft /></motion.button>
-      <motion.button whileHover={{ scale: 1.12, background: theme.primary, color: '#fff', borderColor: 'transparent' }} whileTap={{ scale: 0.9 }} onClick={() => scrollByCard(1)} style={{ ...btnBase, right: 16 }}><FiChevronRight /></motion.button>
+      {/* Arrow buttons — hidden on very small screens */}
+      <motion.button
+        whileHover={{ scale: 1.12, background: theme.primary, color: '#fff', borderColor: 'transparent' }}
+        whileTap={{ scale: 0.9 }}
+        onClick={() => scrollByCard(-1)}
+        style={{ ...btnBase, left: 10 }}
+      ><FiChevronLeft /></motion.button>
 
+      <motion.button
+        whileHover={{ scale: 1.12, background: theme.primary, color: '#fff', borderColor: 'transparent' }}
+        whileTap={{ scale: 0.9 }}
+        onClick={() => scrollByCard(1)}
+        style={{ ...btnBase, right: 10 }}
+      ><FiChevronRight /></motion.button>
+
+      {/* Scrollable track — mouse + touch handlers both attached */}
       <div
         ref={trackRef}
-        onPointerDown={onPointerDown}
-        onPointerUp={onPointerUp}
-        onPointerCancel={onPointerUp}
-        onPointerMove={onPointerMove}
-        style={{ display: 'flex', gap: 24, overflowX: 'scroll', overflowY: 'visible', scrollbarWidth: 'none', msOverflowStyle: 'none', padding: '24px 120px 32px', cursor: 'grab', userSelect: 'none', WebkitOverflowScrolling: 'touch' }}
+        // Mouse
+        onMouseDown={onMouseDown}
+        onMouseUp={onMouseUp}
+        onMouseLeave={onMouseUp}
+        onMouseMove={onMouseMove}
+        // Touch
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        onTouchCancel={onTouchEnd}
+        style={{
+          display: 'flex',
+          gap: 20,
+          overflowX: 'scroll',
+          overflowY: 'visible',
+          scrollbarWidth: 'none',
+          msOverflowStyle: 'none',
+          padding: '24px 80px 32px',
+          cursor: 'grab',
+          userSelect: 'none',
+          WebkitOverflowScrolling: 'touch',
+          touchAction: 'pan-x',           // let browser handle vertical, we handle horizontal
+        }}
       >
         {copies.map((project, i) => (
-          <div key={`${project._id ?? i}-${i}`}
-            onMouseEnter={() => { isPaused.current = true; }}
-            onMouseLeave={() => { if (!isDragging.current) isPaused.current = false; }}
+          <div
+            key={`${project._id ?? i}-${i}`}
+            onMouseEnter={onMouseEnterCard}
+            onMouseLeave={onMouseLeaveCard}
+            // No touch handlers on individual cards — track-level handlers cover it
           >
             <ProjectCard project={project} theme={theme} index={i % projects.length} />
           </div>
